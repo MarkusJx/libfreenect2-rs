@@ -1,0 +1,12 @@
+[package]
+name = "rendered"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kiss3d = "0.35.0"
+anyhow = "1.0"
+nalgebra = { version = "0.30.0", features = ["rand"] }
+rand = "0.8.5"
+libfreenect2-rs = {path = "../libfreenect2-rs"}
+colors-transform = "0.2.11"
