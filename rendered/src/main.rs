@@ -39,6 +39,9 @@ const MAX_DEPTH: f32 = 6.5;
 const SCALE: f32 = 10.0;
 const Z_SCALE: f32 = 3.0;
 
+const FINAL_Z_SCALE: f32 = Z_SCALE / (MAX_DEPTH * 1000.0) * SCALE;
+const Z_HUE_SCALE: f32 = 255.0 / (MAX_DEPTH * 1000.0);
+
 struct FreenectState<'a> {
   _device: Freenect2Device<'a>,
   rx: Receiver<OwnedFrame>,
@@ -106,29 +109,24 @@ impl State for AppState {
     self.point_cloud_renderer.clear();
     let frame = self.freenect_state.get_frame().unwrap();
 
-    let data = frame.raw_data();
-    let width = frame.width();
-    let height = frame.height();
-    let bytes_per_pixel = frame.bytes_per_pixel();
-    let depth_mm = MAX_DEPTH * 1000.0;
+    let start = Instant::now();
+    let width = frame.width() as f32;
+    let height = frame.height() as f32;
 
-    for i in 0..height {
-      for j in 0..width {
-        let idx = i * width + j;
-        let idx = idx * bytes_per_pixel;
-
-        let z = f32::from_ne_bytes(data[idx..idx + 4].try_into().unwrap()) / depth_mm;
+    for (i, row) in frame.iter().enumerate() {
+      for (j, value) in row.enumerate() {
+        let z = value.expect_float();
         if z <= 0.0 {
           continue;
         }
 
-        let x = j as f32 / width as f32 - 0.5;
-        let y = 0.5 - i as f32 / height as f32;
+        let x = j as f32 / width - 0.5;
+        let y = 0.5 - i as f32 / height;
 
-        let color = Hsl::from(z * 255.0, 100.0, 50.0);
+        let color = Hsl::from(z * Z_HUE_SCALE, 100.0, 50.0);
 
         self.point_cloud_renderer.push(
-          Point3::new(x * SCALE, y * SCALE, z * SCALE * Z_SCALE),
+          Point3::new(x * SCALE, y * SCALE, z * FINAL_Z_SCALE),
           Point3::new(
             color.get_red() / 255.0,
             color.get_green() / 255.0,
@@ -138,7 +136,11 @@ impl State for AppState {
       }
     }
 
-    let num_points_text = format!("{} FPS", 1_000_000 / elapsed.as_micros());
+    let processing = start.elapsed();
+    let num_points_text = format!(
+      "{} FPS, processing: {processing:?}",
+      1_000_000 / elapsed.as_micros()
+    );
 
     window.draw_text(
       &num_points_text,

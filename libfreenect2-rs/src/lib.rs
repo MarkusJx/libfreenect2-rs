@@ -1,6 +1,8 @@
-use crate::types::frame::{Frame, Freenect2Frame};
+use crate::types::frame::Frame;
 #[cfg(test)]
-use crate::types::frame_data::FrameData;
+use crate::types::frame::FrameFormat;
+#[cfg(test)]
+use crate::types::frame::Freenect2Frame;
 #[cfg(test)]
 use crate::types::frame_listener::FrameListener;
 use crate::types::frame_type::FrameType;
@@ -50,21 +52,26 @@ fn test() {
     );
 
     let now = Instant::now();
-    /*let data = frame.raw_data();
-    match data {
-      FrameData::Raw(_) => {
+    match frame.format() {
+      FrameFormat::Raw => {
         println!("Raw data");
       }
-      FrameData::Float(_) => {
+      FrameFormat::Invalid => {
+        println!("Invalid data");
+      }
+      FrameFormat::Float => {
         println!("Float data");
       }
-      FrameData::RGBX(rgbx) => {
-        println!("RGBX data: {}", rgbx.len());
+      FrameFormat::RGBX => {
+        println!("RGBX data: {}", frame.raw_data().len());
       }
-      FrameData::Gray(_) => {
+      FrameFormat::Gray => {
         println!("Gray data");
       }
-    }*/
+      FrameFormat::BGRX => {
+        println!("BGRX data");
+      }
+    }
 
     println!("Data processing took: {:?}", now.elapsed());
   })
