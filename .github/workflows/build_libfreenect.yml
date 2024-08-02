@@ -22,11 +22,12 @@ jobs:
     - name: Configure
       run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
       working-directory: libfreenect2
+      shell: bash
     - name: Build
       run: cmake --build build
       working-directory: libfreenect2
     - name: Install
-      run: cmake --install install
+      run: cmake --install build
       working-directory: libfreenect2
     - name: Upload library
       uses: actions/upload-artifact@v4
