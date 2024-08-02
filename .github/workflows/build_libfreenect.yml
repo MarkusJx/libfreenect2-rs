@@ -55,9 +55,9 @@ jobs:
     - name: Set environment windows
       if: runner.os == 'Windows'
       run: |
-        echo ("LibUSB_LIBRARIES=" + (Get-Item .).FullName + "/depends/libusb/VS2022/MS64/static/libusb-1.0.lib") >> $env:GITHUB_ENV
-        echo ("OpenCL_LIBRARY=" + (Get-Item .).FullName + "/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib") >> $env:GITHUB_ENV
-        echo ("GLFW3_LIBRARIES=" + (Get-Item .).FullName + "/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib") >> $env:GITHUB_ENV
+        echo ("LibUSB_LIBRARIES=" + (Get-Item .).FullName.replace('\', '/') + "/depends/libusb/VS2022/MS64/static/libusb-1.0.lib") >> $env:GITHUB_ENV
+        echo ("OpenCL_LIBRARY=" + (Get-Item .).FullName.replace('\', '/') + "/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib") >> $env:GITHUB_ENV
+        echo ("GLFW3_LIBRARIES=" + (Get-Item .).FullName.replace('\', '/') + "/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib") >> $env:GITHUB_ENV
     - name: Configure windows
       working-directory: libfreenect2
       if: runner.os == 'Windows'
