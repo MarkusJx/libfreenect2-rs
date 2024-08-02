@@ -10,8 +10,8 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        apt-get update
-        apt get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
+        sudo apt-get update
+        sudo apt get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
         git clone https://github.com/OpenKinect/libfreenect2.git
     - name: Configure
       run: cmake . -B build
