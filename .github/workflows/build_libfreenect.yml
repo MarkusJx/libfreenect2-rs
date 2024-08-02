@@ -1,7 +1,7 @@
 name: Build libfreenect2
 
 on:
-  push:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,6 +12,9 @@ jobs:
             artifact: linux
           - os: windows-latest
             artifact: windows
+          - os: macos-13
+            artifact: macos
+
     runs-on: ${{matrix.os}}
     env:
       OPENCL_VERSION: v2023.02.06
@@ -21,15 +24,15 @@ jobs:
     - name: Clone libfreenect2
       run: git clone https://github.com/OpenKinect/libfreenect2.git
     - name: Install dependencies linux
-      if: ${{matrix.os == 'ubuntu-latest'}}
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
     - name: Install winget
       uses: Cyberboss/install-winget@v1
-      if: ${{matrix.os == 'windows-latest'}}
+      if: runner.os == 'Windows'
     - name: Install dependencies windows
-      if: ${{matrix.os == 'windows-latest'}}
+      if: runner.os == 'Windows'
       shell: bash
       working-directory: libfreenect2
       run: |
@@ -40,12 +43,21 @@ jobs:
         7z x glfw-$GLFW_VERSION.bin.WIN64.zip -odepends/glfw
         curl -LO https://github.com/KhronosGroup/OpenCL-SDK/releases/download/$OPENCL_VERSION/OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip
         7z x OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip -odepends/opencl
+    - name: Install dependencies macos
+      if: runner.os == 'macOS'
+      run: |
+        brew install libusb
+        brew install glfw3
+        brew install jpeg-turbo
     
     - name: Configure unix
       run: cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
       working-directory: libfreenect2
-      if: ${{matrix.os != 'windows-latest'}}
+      if: runner.os != 'Windows'
     - name: Configure windows
+      working-directory: libfreenect2
+      if: runner.os == 'Windows'
+      shell: bash
       run: |
         cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
         -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib \
@@ -53,9 +65,6 @@ jobs:
         -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/include \
         -DGLFW3_LIBRARIES=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib \
         -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/include
-      working-directory: libfreenect2
-      if: ${{matrix.os == 'windows-latest'}}
-      shell: bash
     - name: Build
       run: cmake --build build --config release
       working-directory: libfreenect2
@@ -63,7 +72,7 @@ jobs:
       run: cmake --install build --config release
       working-directory: libfreenect2
     - name: Copy dependencies windows
-      if: ${{matrix.os == 'windows-latest'}}
+      if: runner.os == 'Windows'
       shell: bash
       working-directory: libfreenect2
       run: |
@@ -78,3 +87,35 @@ jobs:
         name: libfreenect2-${{matrix.artifact}}
         path: libfreenect2/install
           
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}
+      - name: Compute checksums
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir zips
+          mv ./*/*.zip ./zips
+          cd zips
+          echo '## SHA256 Checksums' > ../release_notes.md
+          echo '```' >> ../release_notes.md
+          sha256sum --binary *.zip >> ../release_notes.md
+          echo '```' >> ../release_notes.md
+      - name: Create release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: libfreenect2
+          bodyFile: ${{ runner.temp }}/release_notes.md
+      - name: Upload release assets
+        uses: csexton/release-asset-action@v3
+        with:
+          pattern: ${{ runner.temp }}/zips/*.zip
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-url: ${{ steps.create_release.outputs.upload_url }}
