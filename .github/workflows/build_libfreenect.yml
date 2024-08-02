@@ -38,9 +38,14 @@ jobs:
         curl -LO https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2024.05.08/OpenCL-SDK-v2024.05.08-Win-x64.zip
         7z x OpenCL-SDK-v2024.05.08-Win-x64.zip -odepends/opencl
     
-    - name: Configure
+    - name: Configure unix
       run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
       working-directory: libfreenect2
+      if: ${{matrix.os != 'windows-latest'}}
+    - name: Configure windows
+      run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib -DOpenCL_LIBRARY=$(pwd)/depends/opencl/lib/x86_64/OpenCL.lib
+      working-directory: libfreenect2
+      if: ${{matrix.os == 'windows-latest'}}
       shell: bash
     - name: Build
       run: cmake --build build
