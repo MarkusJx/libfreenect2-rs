@@ -89,7 +89,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: libfreenect2-${{matrix.artifact}}
-        path: libfreenect2-${{matrix.artifact}}.zip
+        path: libfreenect2/install/libfreenect2-${{matrix.artifact}}.zip
           
   release:
     needs: build
