@@ -1,0 +1,135 @@
+name: Build libfreenect2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: linux
+          - os: windows-latest
+            artifact: windows
+          - os: macos-13
+            artifact: macos
+
+    runs-on: ${{matrix.os}}
+    env:
+      OPENCL_VERSION: v2023.02.06
+      GLFW_VERSION: 3.4
+
+    steps:
+    - name: Clone libfreenect2
+      run: git clone https://github.com/OpenKinect/libfreenect2.git
+    - name: Install dependencies linux
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
+    - name: Install winget
+      uses: Cyberboss/install-winget@v1
+      if: runner.os == 'Windows'
+    - name: Install dependencies windows
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: libfreenect2
+      run: |
+        curl -LO https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z
+        7z x libusb-1.0.27.7z -odepends/libusb
+        winget install --id "libjpeg-turbo.libjpeg-turbo.VC" --exact --source winget --accept-source-agreements --version "3.0.3" --silent --disable-interactivity  --accept-package-agreements
+        curl -LO https://github.com/glfw/glfw/releases/download/$GLFW_VERSION/glfw-$GLFW_VERSION.bin.WIN64.zip
+        7z x glfw-$GLFW_VERSION.bin.WIN64.zip -odepends/glfw
+        curl -LO https://github.com/KhronosGroup/OpenCL-SDK/releases/download/$OPENCL_VERSION/OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip
+        7z x OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip -odepends/opencl
+    - name: Install dependencies macos
+      if: runner.os == 'macOS'
+      run: brew install glfw
+    
+    - name: Configure unix
+      run: cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+      working-directory: libfreenect2
+      if: runner.os != 'Windows'
+    - name: Set environment windows
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        echo "LibUSB_LIB=/depends/libusb/VS2022/MS64/static/libusb-1.0.lib" >> $GITHUB_ENV
+        echo "OpenCL_LIB=/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib" >> $GITHUB_ENV
+        echo "GLFW3_LIB=/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib" >> $GITHUB_ENV
+    - name: Configure windows
+      working-directory: libfreenect2
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
+        -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/include \
+        -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/include \
+        -DLibUSB_LIBRARIES=$(pwd)/$LibUSB_LIB \
+        -DOpenCL_LIBRARY=$(pwd)/$OpenCL_LIB \
+        -DGLFW3_LIBRARIES=$(pwd)/$GLFW3_LIB
+    - name: Build
+      run: cmake --build build --config release
+      working-directory: libfreenect2
+    - name: Install
+      run: cmake --install build --config release
+      working-directory: libfreenect2
+    - name: Copy dependencies windows
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: libfreenect2
+      run: |
+        cp $(pwd)/$LibUSB_LIB install/lib
+        cp $(pwd)/$OpenCL_LIB install/lib
+        cp $(pwd)/$GLFW3_LIB install/lib
+        cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
+        cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
+    - name: Create zip
+      working-directory: libfreenect2/install
+      shell: bash
+      run: |
+        rm -rf lib/cmake lib/pkgconfig
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          7z a libfreenect2-${{matrix.artifact}}.zip include lib
+        else
+          zip -r libfreenect2-${{matrix.artifact}}.zip include lib
+        fi
+    - name: Upload library
+      uses: actions/upload-artifact@v4
+      with:
+        name: libfreenect2-${{matrix.artifact}}
+        path: libfreenect2/install/libfreenect2-${{matrix.artifact}}.zip
+          
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}
+      - name: Compute checksums
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir zips
+          mv ./*/*.zip ./zips
+          cd zips
+          echo '## SHA256 Checksums' > ../release_notes.md
+          echo '```' >> ../release_notes.md
+          sha256sum --binary *.zip >> ../release_notes.md
+          echo '```' >> ../release_notes.md
+      - name: Create release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: libfreenect2
+          bodyFile: ${{ runner.temp }}/release_notes.md
+      - name: Upload release assets
+        uses: csexton/release-asset-action@v3
+        with:
+          pattern: ${{ runner.temp }}/zips/*.zip
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-url: ${{ steps.create_release.outputs.upload_url }}
