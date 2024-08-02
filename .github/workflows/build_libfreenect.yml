@@ -81,6 +81,7 @@ jobs:
         cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
     - name: Create zip
       working-directory: libfreenect2/install
+      shell: bash
       run: |
         rm -rf lib/cmake lib/pkgconfig
         zip -r libfreenect2-${{matrix.artifact}}.zip include lib
