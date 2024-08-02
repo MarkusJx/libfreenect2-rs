@@ -57,11 +57,11 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       run: |
+        echo "LibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib" >> $GITHUB_ENV
+        echo "OpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib" >> $GITHUB_ENV
+        echo "GLFW3_LIBRARIES=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib" >> $GITHUB_ENV
         cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
-        -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib \
-        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib \
         -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/include \
-        -DGLFW3_LIBRARIES=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib \
         -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/include
     - name: Build
       run: cmake --build build --config release
@@ -74,9 +74,9 @@ jobs:
       shell: bash
       working-directory: libfreenect2
       run: |
-        cp $(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib install/lib
-        cp $(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib install/lib
-        cp $(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib install/lib
+        cp $LibUSB_LIBRARIES install/lib
+        cp $OpenCL_LIBRARY install/lib
+        cp $GLFW3_LIBRARIES install/lib
         cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
         cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
     - name: Create zip
@@ -84,7 +84,11 @@ jobs:
       shell: bash
       run: |
         rm -rf lib/cmake lib/pkgconfig
-        zip -r libfreenect2-${{matrix.artifact}}.zip include lib
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          7z a libfreenect2-${{matrix.artifact}}.zip include lib
+        else
+          zip -r libfreenect2-${{matrix.artifact}}.zip include lib
+        fi
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
