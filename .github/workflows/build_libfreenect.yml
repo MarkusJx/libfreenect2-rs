@@ -82,11 +82,13 @@ jobs:
         cp $(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib install/lib
         cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
         cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
+    - name: Create zip
+      run: zip -r libfreenect2-${{matrix.artifact}}.zip libfreenect2/install
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
         name: libfreenect2-${{matrix.artifact}}
-        path: libfreenect2/install
+        path: libfreenect2-${{matrix.artifact}}.zip
           
   release:
     needs: build
