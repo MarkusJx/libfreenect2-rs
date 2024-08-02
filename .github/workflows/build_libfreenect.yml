@@ -67,11 +67,11 @@ jobs:
       shell: bash
       working-directory: libfreenect2
       run: |
-        cp $(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib libfreenect2/install/lib
-        cp $(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib libfreenect2/install/lib
-        cp $(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib libfreenect2/install/lib
-        cp C:/libjpeg-turbo64/lib/jpeg-static.lib libfreenect2/install/lib
-        cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib libfreenect2/install/lib
+        cp $(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib install/lib
+        cp $(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib install/lib
+        cp $(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib install/lib
+        cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
+        cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
