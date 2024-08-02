@@ -54,10 +54,10 @@ jobs:
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
     - name: Build
-      run: cmake --build build
+      run: cmake --build build --config release
       working-directory: libfreenect2
     - name: Install
-      run: cmake --install build
+      run: cmake --install build --config release
       working-directory: libfreenect2
     - name: Upload library
       uses: actions/upload-artifact@v4
