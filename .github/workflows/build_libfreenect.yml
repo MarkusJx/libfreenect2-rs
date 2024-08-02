@@ -13,6 +13,9 @@ jobs:
           - os: windows-latest
             artifact: windows
     runs-on: ${{matrix.os}}
+    env:
+      OPENCL_VERSION: v2023.02.06
+      GLFW_VERSION: 3.4
 
     steps:
     - name: Clone libfreenect2
@@ -32,11 +35,11 @@ jobs:
       run: |
         curl -LO https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z
         7z x libusb-1.0.27.7z -odepends/libusb
-        winget install --id "libjpeg-turbo.libjpeg-turbo.VC" --exact --source winget --accept-source-agreements --version "3.0.3" --silent --disable-interactivity  --accept-package-agreements --location $(pwd)/depends/libjpeg-turbo64
-        curl -LO https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.bin.WIN64.zip
-        7z x glfw-3.4.bin.WIN64.zip -odepends/glfw
-        curl -LO https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.02.06/OpenCL-SDK-v2023.02.06-Win-x64.zip
-        7z x OpenCL-SDK-v2023.02.06-Win-x64.zip -odepends/opencl
+        winget install --id "libjpeg-turbo.libjpeg-turbo.VC" --exact --source winget --accept-source-agreements --version "3.0.3" --silent --disable-interactivity  --accept-package-agreements
+        curl -LO https://github.com/glfw/glfw/releases/download/$GLFW_VERSION/glfw-$GLFW_VERSION.bin.WIN64.zip
+        7z x glfw-$GLFW_VERSION.bin.WIN64.zip -odepends/glfw
+        curl -LO https://github.com/KhronosGroup/OpenCL-SDK/releases/download/$OPENCL_VERSION/OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip
+        7z x OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip -odepends/opencl
     
     - name: Configure unix
       run: cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
@@ -46,10 +49,10 @@ jobs:
       run: |
         cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
         -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib \
-        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-v2023.02.06-Win-x64/lib/OpenCL.lib \
-        -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-v2023.02.06-Win-x64/include \
-        -DGLFW3_LIBRARIES=$(pwd)/depends/glfw/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib \
-        -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-3.4.bin.WIN64/include
+        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib \
+        -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/include \
+        -DGLFW3_LIBRARIES=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib \
+        -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/include
       working-directory: libfreenect2
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
@@ -59,6 +62,16 @@ jobs:
     - name: Install
       run: cmake --install build --config release
       working-directory: libfreenect2
+    - name: Copy dependencies windows
+      if: ${{matrix.os == 'windows-latest'}}
+      shell: bash
+      working-directory: libfreenect2
+      run: |
+        cp $(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib libfreenect2/install/lib
+        cp $(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib libfreenect2/install/lib
+        cp $(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib libfreenect2/install/lib
+        cp C:/libjpeg-turbo64/lib/jpeg-static.lib libfreenect2/install/lib
+        cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib libfreenect2/install/lib
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
