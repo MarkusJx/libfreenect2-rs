@@ -53,7 +53,7 @@ jobs:
       working-directory: libfreenect2
       if: runner.os != 'Windows'
     - name: Set environment windows
-      if: runner.os != 'Windows'
+      if: runner.os == 'Windows'
       shell: bash
       run: |
         echo "LibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib" >> $GITHUB_ENV
