@@ -20,16 +20,17 @@ jobs:
         git clone https://github.com/OpenKinect/libfreenect2.git
       if: ${{matrix.os == 'ubuntu-latest'}}
     - name: Configure
-      run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild
+      run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
       working-directory: libfreenect2
     - name: Build
       run: cmake --build build
+      working-directory: libfreenect2
+    - name: Install
+      run: cmake --install install
       working-directory: libfreenect2
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
         name: libfreenect2-${{matrix.artifact}}
-        path: |
-          libfreenect2/build/include
-          libfreenect2/build/libfreenect2.a
+        path: libfreenect2/install
           
