@@ -54,10 +54,11 @@ jobs:
       if: runner.os != 'Windows'
     - name: Set environment windows
       if: runner.os == 'Windows'
+      shell: bash
       run: |
-        echo ("LibUSB_LIBRARIES=" + (Get-Item .).FullName.replace('\', '/') + "/depends/libusb/VS2022/MS64/static/libusb-1.0.lib") >> $env:GITHUB_ENV
-        echo ("OpenCL_LIBRARY=" + (Get-Item .).FullName.replace('\', '/') + "/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib") >> $env:GITHUB_ENV
-        echo ("GLFW3_LIBRARIES=" + (Get-Item .).FullName.replace('\', '/') + "/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib") >> $env:GITHUB_ENV
+        echo "LibUSB_LIB=/depends/libusb/VS2022/MS64/static/libusb-1.0.lib" >> $GITHUB_ENV
+        echo "OpenCL_LIB=/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/lib/OpenCL.lib" >> $GITHUB_ENV
+        echo "GLFW3_LIB=/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/lib-vc2022/glfw3.lib" >> $GITHUB_ENV
     - name: Configure windows
       working-directory: libfreenect2
       if: runner.os == 'Windows'
@@ -66,9 +67,9 @@ jobs:
         cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
         -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-$OPENCL_VERSION-Win-x64/include \
         -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw/glfw-$GLFW_VERSION.bin.WIN64/include \
-        -DLibUSB_LIBRARIES=$LibUSB_LIBRARIES \
-        -DOpenCL_LIBRARY=$OpenCL_LIBRARY \
-        -DGLFW3_LIBRARIES=$GLFW3_LIBRARIES
+        -DLibUSB_LIBRARIES=$(pwd)/$LibUSB_LIB \
+        -DOpenCL_LIBRARY=$(pwd)/$OpenCL_LIB \
+        -DGLFW3_LIBRARIES=$(pwd)/$GLFW3_LIB
     - name: Build
       run: cmake --build build --config release
       working-directory: libfreenect2
@@ -80,9 +81,9 @@ jobs:
       shell: bash
       working-directory: libfreenect2
       run: |
-        cp $LibUSB_LIBRARIES install/lib
-        cp $OpenCL_LIBRARY install/lib
-        cp $GLFW3_LIBRARIES install/lib
+        cp $(pwd)/$LibUSB_LIB install/lib
+        cp $(pwd)/$OpenCL_LIB install/lib
+        cp $(pwd)/$GLFW3_LIB install/lib
         cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
         cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
     - name: Create zip
