@@ -16,11 +16,11 @@ jobs:
     - name: Install dependencies linux
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev ocl-icd-opencl-dev
+        sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
         git clone https://github.com/OpenKinect/libfreenect2.git
       if: ${{matrix.os == 'ubuntu-latest'}}
     - name: Configure
-      run: cmake . -B build
+      run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild
       working-directory: libfreenect2
     - name: Build
       run: cmake --build build
