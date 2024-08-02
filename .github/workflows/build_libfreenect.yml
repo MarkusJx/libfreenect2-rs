@@ -43,7 +43,11 @@ jobs:
       working-directory: libfreenect2
       if: ${{matrix.os != 'windows-latest'}}
     - name: Configure windows
-      run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib -DOpenCL_LIBRARY=$(pwd)/depends/opencl/lib/x86_64/OpenCL.lib
+      run: |
+        cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
+        -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib \
+        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/lib/x86_64/OpenCL.lib \
+        -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/include
       working-directory: libfreenect2
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
