@@ -46,10 +46,7 @@ jobs:
         7z x OpenCL-SDK-$OPENCL_VERSION-Win-x64.zip -odepends/opencl
     - name: Install dependencies macos
       if: runner.os == 'macOS'
-      run: |
-        brew install libusb
-        brew install glfw3
-        brew install jpeg-turbo
+      run: brew install glfw
     
     - name: Configure unix
       run: cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
@@ -83,7 +80,10 @@ jobs:
         cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
         cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
     - name: Create zip
-      run: zip -r libfreenect2-${{matrix.artifact}}.zip libfreenect2/install
+      working-directory: libfreenect2/install
+      run: |
+        rm -rf lib/cmake lib/pkgconfig
+        zip -r libfreenect2-${{matrix.artifact}}.zip include lib
     - name: Upload library
       uses: actions/upload-artifact@v4
       with:
