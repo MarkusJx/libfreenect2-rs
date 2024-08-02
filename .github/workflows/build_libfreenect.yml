@@ -22,6 +22,9 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
+    - name: Install winget
+      uses: Cyberboss/install-winget@v1
+      if: ${{matrix.os == 'windows-latest'}}
     - name: Install dependencies windows
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
