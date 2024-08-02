@@ -28,12 +28,12 @@ jobs:
       working-directory: libfreenect2
       run: |
         curl -O https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z
-        7z x libusb-1.0.27.7z -o depends/libusb
+        7z x libusb-1.0.27.7z -odepends/libusb
         winget install --id "libjpeg-turbo.libjpeg-turbo.VC" --exact --source winget --accept-source-agreements --version "3.0.3" --silent --disable-interactivity  --accept-package-agreements --location $(pwd)/depends/libjpeg-turbo64
         curl -O https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.bin.WIN64.zip
-        7z x glfw-3.4.bin.WIN64.zip -o depends/glfw
+        7z x glfw-3.4.bin.WIN64.zip -odepends/glfw
         curl -O https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2024.05.08/OpenCL-SDK-v2024.05.08-Win-x64.zip
-        7z x OpenCL-SDK-v2024.05.08-Win-x64.zip -o depends/opencl
+        7z x OpenCL-SDK-v2024.05.08-Win-x64.zip -odepends/opencl
     
     - name: Configure
       run: cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install
