@@ -46,10 +46,10 @@ jobs:
       run: |
         cmake . -DBUILD_SHARED_LIBS=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
         -DLibUSB_LIBRARIES=$(pwd)/depends/libusb/VS2022/MS64/static/libusb-1.0.lib
-        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-v2024.05.08-Win-x64/lib/x86_64/OpenCL.lib \
+        -DOpenCL_LIBRARY=$(pwd)/depends/opencl/OpenCL-SDK-v2024.05.08-Win-x64/lib/OpenCL.lib \
         -DOpenCL_INCLUDE_DIR=$(pwd)/depends/opencl/OpenCL-SDK-v2024.05.08-Win-x64/include \
-        -DGLFW3_LIBRARIES=$(pwd)/depends/glfw\glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib \
-        -DGLFW3_INCLUDE_DIRS=$(pwd)/depends/glfw\glfw-3.4.bin.WIN64/include
+        -DGLFW3_LIBRARY=$(pwd)/depends/glfw\glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib \
+        -DGLFW3_INCLUDE_DIR=$(pwd)/depends/glfw\glfw-3.4.bin.WIN64/include
       working-directory: libfreenect2
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
