@@ -25,9 +25,6 @@ jobs:
     - name: Install winget
       uses: Cyberboss/install-winget@v1
       if: ${{matrix.os == 'windows-latest'}}
-    - name: Visual Studio shell
-      uses: egor-tensin/vs-shell@v2
-      if: ${{matrix.os == 'windows-latest'}}
     - name: Install dependencies windows
       if: ${{matrix.os == 'windows-latest'}}
       shell: bash
