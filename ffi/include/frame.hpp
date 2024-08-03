@@ -41,6 +41,15 @@ namespace libfreenect2_ffi {
       rust::Fn<void(FrameType, std::unique_ptr<Frame>,
                     const rust::cxxbridge1::Box<CallContext>&)>
           on_new_frame);
+
+#ifndef NDEBUG
+  namespace test {
+    LIBFREENECT2_MAYBE_UNUSED void call_frame_listener(
+        std::unique_ptr<libfreenect2::FrameListener>& listener, FrameType type,
+        uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
+        unsigned char* data);
+  }
+#endif
 }  // namespace libfreenect2_ffi
 
 #endif  // FFI_FRAME_HPP

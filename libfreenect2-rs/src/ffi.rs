@@ -1,8 +1,11 @@
 #![allow(unused)]
 #![allow(clippy::needless_lifetimes)]
 
+use std::panic::UnwindSafe;
+
 pub(crate) struct CallContext<'a> {
-  pub(crate) func: Box<dyn Fn(crate::FrameType, crate::Frame) + 'a>,
+  pub(crate) func:
+    Box<dyn Fn(crate::types::frame_type::FrameType, crate::types::frame::Frame) + 'a>,
 }
 
 #[cxx::bridge]
@@ -126,5 +129,18 @@ pub(crate) mod libfreenect2 {
     fn set_enable_edge_aware_filter(self: Pin<&mut Config>, enable: bool);
 
     fn create_config() -> Result<UniquePtr<Config>>;
+  }
+
+  #[cfg(debug_assertions)]
+  #[namespace = "libfreenect2_ffi::test"]
+  unsafe extern "C++" {
+    unsafe fn call_frame_listener<'a>(
+      listener: &mut UniquePtr<FrameListener<'a>>,
+      frame_type: FrameType,
+      width: u64,
+      height: u64,
+      bytes_per_pixel: u64,
+      data: *mut u8,
+    ) -> Result<()>;
   }
 }
