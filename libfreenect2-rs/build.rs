@@ -29,6 +29,9 @@ fn main() -> anyhow::Result<()> {
       "framework=CoreMedia",
       "framework=CoreVideo",
       "framework=IOKit",
+      "framework=CoreGraphics",
+      "framework=AppKit",
+      "framework=StoreKit",
     ]
     .to_vec(),
     TargetOS::Linux => ["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"].to_vec(),
