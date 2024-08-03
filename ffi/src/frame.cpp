@@ -85,14 +85,16 @@ libfreenect2_ffi::create_frame_listener(
 }
 
 #ifndef NDEBUG
-namespace libfreenect2_ffi::test {
-  LIBFREENECT2_MAYBE_UNUSED void call_frame_listener(
-      std::unique_ptr<libfreenect2::FrameListener> &listener, FrameType type,
-      uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
-      unsigned char *data) {
-    listener->onNewFrame(
-        static_cast<libfreenect2::Frame::Type>(type),
-        new libfreenect2::Frame(width, height, bytes_per_pixel, data));
-  }
-}  // namespace libfreenect2_ffi::test
+namespace libfreenect2_ffi {
+  namespace test {
+    LIBFREENECT2_MAYBE_UNUSED void call_frame_listener(
+        std::unique_ptr<libfreenect2::FrameListener> &listener, FrameType type,
+        uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
+        unsigned char *data) {
+      listener->onNewFrame(
+          static_cast<libfreenect2::Frame::Type>(type),
+          new libfreenect2::Frame(width, height, bytes_per_pixel, data));
+    }
+  }  // namespace test
+}  // namespace libfreenect2_ffi
 #endif

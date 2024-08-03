@@ -31,16 +31,16 @@ fn test_set_max_depth() {
 fn test_set_enable_bilateral_filter() {
   let mut config = Config::new().unwrap();
   assert!(config.set_enable_bilateral_filter(true).is_ok());
-  assert_eq!(config.get_enable_bilateral_filter(), true);
+  assert!(config.get_enable_bilateral_filter());
   assert!(config.set_enable_bilateral_filter(false).is_ok());
-  assert_eq!(config.get_enable_bilateral_filter(), false);
+  assert!(!config.get_enable_bilateral_filter());
 }
 
 #[test]
 fn test_set_enable_edge_aware_filter() {
   let mut config = Config::new().unwrap();
   assert!(config.set_enable_edge_aware_filter(true).is_ok());
-  assert_eq!(config.get_enable_edge_aware_filter(), true);
+  assert!(config.get_enable_edge_aware_filter());
   assert!(config.set_enable_edge_aware_filter(false).is_ok());
-  assert_eq!(config.get_enable_edge_aware_filter(), false);
+  assert!(!config.get_enable_edge_aware_filter());
 }
