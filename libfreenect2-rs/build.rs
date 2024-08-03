@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
       "framework=IOKit",
     ]
     .to_vec(),
-    TargetOS::Linux => ["stdc++", "usb-1.0", "glfw3"].to_vec(),
+    TargetOS::Linux => ["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"].to_vec(),
     TargetOS::Windows => ["opengl32", "user32", "gdi32", "shell32"].to_vec(),
   };
 
