@@ -1384,6 +1384,7 @@ dependencies = [
  "cxx",
  "cxx-build",
  "hex",
+ "log",
  "octocrab",
  "regex",
  "ring",
