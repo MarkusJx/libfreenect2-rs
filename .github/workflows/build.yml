@@ -21,7 +21,6 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          echo $RUNNER_OS
           if [ "$RUNNER_OS" == "Linux" ]; then
             sudo apt-get update
             sudo apt-get install -y libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
