@@ -34,6 +34,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: clang-tidy
+        working-directory: ffi
         run: |
           cmake -B build -DCMake_RUN_CLANG_TIDY=ON .
           cmake --build build

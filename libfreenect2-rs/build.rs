@@ -20,8 +20,8 @@ fn main() -> anyhow::Result<()> {
   }
 
   let os_libs = match TargetOS::new()? {
-    TargetOS::Macos => ["c++", "libusb-1.0", "glfw3"].to_vec(),
-    TargetOS::Linux => ["stdc++", "libusb-1.0", "glfw3"].to_vec(),
+    TargetOS::Macos => ["c++", "usb", "glfw3"].to_vec(),
+    TargetOS::Linux => ["stdc++", "usb-1.0", "glfw3"].to_vec(),
     TargetOS::Windows => ["opengl32", "user32", "gdi32", "shell32"].to_vec(),
   };
 

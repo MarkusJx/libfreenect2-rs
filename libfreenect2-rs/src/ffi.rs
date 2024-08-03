@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![allow(clippy::needless_lifetimes)]
 
 pub(crate) struct CallContext<'a> {
   pub(crate) func: Box<dyn Fn(crate::FrameType, crate::Frame) + 'a>,
