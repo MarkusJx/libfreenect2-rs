@@ -1,17 +1,9 @@
 cmake_minimum_required(VERSION 3.28)
 project(ffi)
 
-set(CMAKE_CXX_STANDARD 17)
+include(FetchContent)
 
-if (NOT EXISTS "${CMAKE_SOURCE_DIR}/include/cxx.h")
-    message(STATUS "Downloading cxx.h")
-    file(DOWNLOAD
-            "https://raw.githubusercontent.com/dtolnay/cxx/master/include/cxx.h"
-            "${CMAKE_SOURCE_DIR}/include/cxx.h")
-    message(STATUS "Downloading cxx.h - done")
-else ()
-    message(STATUS "cxx.h already exists, skipping download")
-endif ()
+set(CMAKE_CXX_STANDARD 17)
 
 add_library(ffi STATIC
         src/frame.cpp
@@ -23,4 +15,4 @@ add_library(ffi STATIC
         include/config.hpp
         src/freenect2_device.cpp
         include/freenect2_device.hpp)
-include_directories(ffi PUBLIC "C:\\Users\\marku\\Desktop\\libfreenect2\\build\\install\\include" "../target/cxxbridge/libfreenect2-rs/src" "include")
+include_directories(ffi PRIVATE "../target/include" "../target/cxxbridge/libfreenect2-rs/src" "../target/cxxbridge" "include")

@@ -3,7 +3,7 @@
 
 #include <libfreenect2/libfreenect2.hpp>
 #include <memory>
-#include "cxx.h"
+#include "rust/cxx.h"
 #include "macros.hpp"
 #include "config.hpp"
 

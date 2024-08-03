@@ -3,7 +3,7 @@
 
 #include <libfreenect2/frame_listener.hpp>
 #include <memory>
-#include "cxx.h"
+#include "rust/cxx.h"
 #include "macros.hpp"
 
 enum class FrameType : ::std::uint8_t;

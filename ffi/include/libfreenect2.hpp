@@ -4,7 +4,7 @@
 #include <libfreenect2/libfreenect2.hpp>
 #include <memory>
 #include "freenect2_device.hpp"
-#include "cxx.h"
+#include "rust/cxx.h"
 #include "macros.hpp"
 
 namespace libfreenect2_ffi {

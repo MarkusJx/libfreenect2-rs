@@ -76,3 +76,6 @@ impl Freenect2 {
     }
   }
 }
+
+unsafe impl Send for Freenect2 {}
+unsafe impl Sync for Freenect2 {}

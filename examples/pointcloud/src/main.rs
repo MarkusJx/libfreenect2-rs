@@ -12,17 +12,16 @@ use kiss3d::resource::{
 };
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
-use na::{Matrix4, Point2, Point3};
-use std::sync::mpsc::Receiver;
-use std::sync::OnceLock;
-use std::time::Instant;
-
 use libfreenect2_rs::types::config::Config;
 use libfreenect2_rs::types::frame::{Freenect2Frame, OwnedFrame};
 use libfreenect2_rs::types::frame_listener::FrameListener;
 use libfreenect2_rs::types::frame_type::FrameType;
 use libfreenect2_rs::types::freenect2::Freenect2;
 use libfreenect2_rs::types::freenect2_device::Freenect2Device;
+use na::{Matrix4, Point2, Point3};
+use once_cell::sync::OnceCell;
+use std::sync::mpsc::Receiver;
+use std::time::Instant;
 
 // Custom renderers are used to allow rendering objects that are not necessarily
 // represented as meshes. In this example, we will render a large, growing, point cloud
@@ -32,9 +31,9 @@ use libfreenect2_rs::types::freenect2_device::Freenect2Device;
 // handled by the `State` trait instead of a `while window.render()`
 // like other examples.
 
-static FRAME_LISTENER: OnceLock<FrameListener<'static>> = OnceLock::new();
+static FRAME_LISTENER: OnceCell<FrameListener<'static>> = OnceCell::new();
 static mut FREENECT: Option<Freenect2> = None;
-static CONFIG: OnceLock<Config> = OnceLock::new();
+static CONFIG: OnceCell<Config> = OnceCell::new();
 const MAX_DEPTH: f32 = 6.5;
 const SCALE: f32 = 10.0;
 const Z_SCALE: f32 = 3.0;
@@ -55,23 +54,23 @@ impl FreenectState<'_> {
     };
 
     let (tx, rx) = std::sync::mpsc::channel();
-    let frame_listener = FRAME_LISTENER.get_or_init(|| {
+    let frame_listener = FRAME_LISTENER.get_or_try_init(|| {
       FrameListener::new(move |ty, frame| {
         if ty == FrameType::Depth {
           tx.send(frame.to_owned()).unwrap();
         }
       })
-      .unwrap()
-    });
+    })?;
 
     device.set_ir_and_depth_frame_listener(frame_listener)?;
     device.start_streams(false, true)?;
 
-    let config = CONFIG.get_or_init(|| {
-      let mut config = Config::new().unwrap();
-      config.set_max_depth(MAX_DEPTH).unwrap();
-      config
-    });
+    let config = CONFIG.get_or_try_init(|| -> anyhow::Result<Config> {
+      let mut config = Config::new()?;
+      config.set_max_depth(MAX_DEPTH)?;
+
+      Ok(config)
+    })?;
     device.set_config(config)?;
 
     Ok(Self {
