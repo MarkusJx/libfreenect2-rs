@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
     TargetOS::Macos => [
       "usb-1.0",
       "glfw3",
+      "framework=CoreFoundation",
       "framework=OpenCL",
       "framework=VideoToolbox",
       "framework=CoreMedia",
