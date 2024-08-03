@@ -32,7 +32,7 @@ impl<'a> FrameListener<'a> {
     Self::create_self(ctx)
   }
 
-  fn create_self(ctx: Box<CallContext>) -> anyhow::Result<Self> {
+  fn create_self(ctx: Box<CallContext<'a>>) -> anyhow::Result<Self> {
     ffi::libfreenect2::create_frame_listener(ctx, |frame_type, frame, ctx| {
       let ctx = ctx.as_ref();
       let func = ctx.func.as_ref();
