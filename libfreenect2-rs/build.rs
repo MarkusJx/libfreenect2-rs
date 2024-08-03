@@ -26,6 +26,8 @@ fn main() -> anyhow::Result<()> {
       "framework=OpenCL",
       "framework=VideoToolbox",
       "framework=CoreMedia",
+      "framework=CoreVideo",
+      "framework=IOKit",
     ]
     .to_vec(),
     TargetOS::Linux => ["stdc++", "usb-1.0", "glfw3"].to_vec(),
