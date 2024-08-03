@@ -1,0 +1,39 @@
+name: Lint
+on:
+  push:
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.7.3
+        with:
+          key: clippy
+      - name: Check format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  clang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.7.3
+        with:
+          key: clang
+      - name: Check format
+        working-directory: ffi
+        run: clang-format --style=file:.clang-format -i -n --Werror src/* include/*
+      - name: Install headers
+        run: cargo check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: clang-tidy
+        run: |
+          cmake -B build -DCMake_RUN_CLANG_TIDY=ON .
+          cmake --build build
