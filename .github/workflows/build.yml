@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
+
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.7.3
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install glfw
+          fi
+      - name: Build
+        run: cargo build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
