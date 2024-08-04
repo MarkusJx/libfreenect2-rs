@@ -61,6 +61,12 @@ pub struct RGBX {
   pub x: u8,
 }
 
+impl RGBX {
+  pub fn raw(&self) -> [u8; 4] {
+    [self.r, self.g, self.b, self.x]
+  }
+}
+
 impl<'a> Iterator for FrameDataIter<'a> {
   type Item = FrameRowIter<'a>;
 

@@ -62,18 +62,23 @@ pub(crate) mod libfreenect2 {
     fn get_default_device_serial_number(self: Pin<&mut Freenect2>) -> Result<String>;
 
     unsafe fn open_device_by_id<'a>(
-      self: Pin<&'a mut Freenect2>,
+      self: Pin<&mut Freenect2>,
       idx: i32,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
     unsafe fn open_device_by_serial<'a>(
-      self: Pin<&'a mut Freenect2>,
+      self: Pin<&mut Freenect2>,
       serial: &str,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
     unsafe fn open_default_device<'a>(
-      self: Pin<&'a mut Freenect2>,
+      self: Pin<&mut Freenect2>,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
 
-    fn create_freenect2() -> Result<UniquePtr<Freenect2>>;
+    /// Create a new Freenect2 instance.
+    ///
+    /// # Safety
+    /// No Freenect2 instance should be created
+    /// while another one is still alive.
+    unsafe fn create_freenect2() -> Result<UniquePtr<Freenect2>>;
 
     pub type Freenect2Device<'a>;
 

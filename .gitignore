@@ -4,3 +4,5 @@
 **/cmake-build-*/
 **/.idea/
 ffi/include/cxx.h
+ffi/.cache/
+ffi/build/

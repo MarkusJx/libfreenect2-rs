@@ -13,6 +13,14 @@ pub enum FrameFormat {
   Gray,
 }
 
+#[cfg(feature = "image")]
+pub enum FrameImage {
+  RGB(image::RgbImage),
+  Gray(image::GrayImage),
+  Float(image::ImageBuffer<image::Luma<f32>, Vec<f32>>),
+  Invalid,
+}
+
 impl From<ffi::libfreenect2::FrameFormat> for FrameFormat {
   fn from(value: ffi::libfreenect2::FrameFormat) -> Self {
     match value {
@@ -53,6 +61,47 @@ pub trait Freenect2Frame {
     Self: Sized,
   {
     FrameDataIter::new(self)
+  }
+
+  #[cfg(feature = "image")]
+  fn as_image(&self) -> FrameImage
+  where
+    Self: Sized,
+  {
+    match self.format() {
+      FrameFormat::BGRX | FrameFormat::RGBX => {
+        let Some(data) = self
+          .iter()
+          .flat_map(|row| row.map(|value| value.rgbx().map(|r| r.raw()[..3].to_vec())))
+          .collect::<Option<Vec<_>>>()
+          .map(|data| data.into_iter().flatten().collect::<Vec<_>>())
+        else {
+          return FrameImage::Invalid;
+        };
+
+        image::RgbImage::from_raw(self.width() as _, self.height() as _, data)
+          .map_or(FrameImage::Invalid, FrameImage::RGB)
+      }
+      FrameFormat::Gray => image::GrayImage::from_raw(
+        self.width() as _,
+        self.height() as _,
+        self.raw_data().to_vec(),
+      )
+      .map_or(FrameImage::Invalid, FrameImage::Gray),
+      FrameFormat::Float => {
+        let Some(data) = self
+          .iter()
+          .flat_map(|row| row.map(|value| value.float()))
+          .collect::<Option<Vec<_>>>()
+        else {
+          return FrameImage::Invalid;
+        };
+
+        image::ImageBuffer::from_raw(self.width() as _, self.height() as _, data)
+          .map_or(FrameImage::Invalid, FrameImage::Float)
+      }
+      FrameFormat::Invalid | FrameFormat::Raw => FrameImage::Invalid,
+    }
   }
 }
 

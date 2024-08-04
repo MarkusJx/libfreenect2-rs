@@ -1,7 +1,12 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+use std::sync::mpsc::Receiver;
+use std::time::Instant;
+
 use colors_transform::{Color, Hsl};
+#[cfg(feature = "image")]
+use image::imageops::{resize, FilterType};
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
 use kiss3d::planar_camera::PlanarCamera;
@@ -12,16 +17,17 @@ use kiss3d::resource::{
 };
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
-use libfreenect2_rs::types::config::Config;
-use libfreenect2_rs::types::frame::{Freenect2Frame, OwnedFrame};
-use libfreenect2_rs::types::frame_listener::FrameListener;
-use libfreenect2_rs::types::frame_type::FrameType;
-use libfreenect2_rs::types::freenect2::Freenect2;
-use libfreenect2_rs::types::freenect2_device::Freenect2Device;
 use na::{Matrix4, Point2, Point3};
 use once_cell::sync::OnceCell;
-use std::sync::mpsc::Receiver;
-use std::time::Instant;
+
+use libfreenect2_rs::config::Config;
+#[cfg(feature = "image")]
+use libfreenect2_rs::frame::FrameImage;
+use libfreenect2_rs::frame::{Freenect2Frame, OwnedFrame};
+use libfreenect2_rs::frame_listener::FrameListener;
+use libfreenect2_rs::frame_type::FrameType;
+use libfreenect2_rs::freenect2::Freenect2;
+use libfreenect2_rs::freenect2_device::Freenect2Device;
 
 // Custom renderers are used to allow rendering objects that are not necessarily
 // represented as meshes. In this example, we will render a large, growing, point cloud
@@ -43,8 +49,14 @@ const Z_HUE_SCALE: f32 = 255.0 / (MAX_DEPTH * 1000.0);
 
 struct FreenectState<'a> {
   _device: Freenect2Device<'a>,
+  #[cfg(feature = "image")]
+  rx: Receiver<(OwnedFrame, OwnedFrame)>,
+  #[cfg(not(feature = "image"))]
   rx: Receiver<OwnedFrame>,
 }
+
+#[cfg(feature = "image")]
+static mut FRAME_DATA: (Option<OwnedFrame>, Option<OwnedFrame>) = (None, None);
 
 impl FreenectState<'_> {
   fn new() -> anyhow::Result<Self> {
@@ -55,15 +67,31 @@ impl FreenectState<'_> {
 
     let (tx, rx) = std::sync::mpsc::channel();
     let frame_listener = FRAME_LISTENER.get_or_try_init(|| {
-      FrameListener::new(move |ty, frame| {
+      #[cfg(feature = "image")]
+      return FrameListener::new(move |ty, frame| unsafe {
+        if ty == FrameType::Depth {
+          FRAME_DATA.0 = Some(frame.to_owned());
+        } else if ty == FrameType::Color {
+          FRAME_DATA.1 = Some(frame.to_owned());
+        }
+
+        if FRAME_DATA.0.is_some() && FRAME_DATA.1.is_some() {
+          tx.send((FRAME_DATA.0.take().unwrap(), FRAME_DATA.1.take().unwrap()))
+            .unwrap();
+        }
+      });
+
+      #[cfg(not(feature = "image"))]
+      return FrameListener::new(move |ty, frame| {
         if ty == FrameType::Depth {
           tx.send(frame.to_owned()).unwrap();
         }
-      })
+      });
     })?;
 
     device.set_ir_and_depth_frame_listener(frame_listener)?;
-    device.start_streams(false, true)?;
+    device.set_color_frame_listener(frame_listener)?;
+    device.start_streams(true, true)?;
 
     let config = CONFIG.get_or_try_init(|| -> anyhow::Result<Config> {
       let mut config = Config::new()?;
@@ -79,6 +107,12 @@ impl FreenectState<'_> {
     })
   }
 
+  #[cfg(feature = "image")]
+  fn get_frame(&self) -> anyhow::Result<(OwnedFrame, OwnedFrame)> {
+    self.rx.recv().map_err(Into::into)
+  }
+
+  #[cfg(not(feature = "image"))]
   fn get_frame(&self) -> anyhow::Result<OwnedFrame> {
     self.rx.recv().map_err(Into::into)
   }
@@ -88,6 +122,8 @@ struct AppState {
   point_cloud_renderer: PointCloudRenderer,
   last_render_start: Instant,
   freenect_state: FreenectState<'static>,
+  #[cfg(feature = "image")]
+  i: usize,
 }
 
 impl AppState {
@@ -96,6 +132,8 @@ impl AppState {
       point_cloud_renderer: PointCloudRenderer::new(4.0),
       last_render_start: Instant::now(),
       freenect_state,
+      #[cfg(feature = "image")]
+      i: 0,
     })
   }
 }
@@ -106,26 +144,61 @@ impl State for AppState {
     self.last_render_start = Instant::now();
 
     self.point_cloud_renderer.clear();
+    #[cfg(feature = "image")]
+    let (frame, color) = self.freenect_state.get_frame().unwrap();
+
+    #[cfg(feature = "image")]
+    {
+      self.i += 1;
+      if self.i % 100 == 0 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        return;
+      }
+    }
+
+    #[cfg(not(feature = "image"))]
     let frame = self.freenect_state.get_frame().unwrap();
 
     let start = Instant::now();
     let width = frame.width() as f32;
     let height = frame.height() as f32;
+    #[cfg(feature = "image")]
+    let FrameImage::RGB(color) = color.as_image() else {
+      eprintln!("Invalid color frame");
+      return;
+    };
 
-    for (i, row) in frame.iter().enumerate() {
-      for (j, value) in row.enumerate() {
+    #[cfg(feature = "image")]
+    let color_resized = resize(
+      &color,
+      frame.width() as _,
+      frame.height() as _,
+      FilterType::Triangle,
+    );
+
+    for (y, row) in frame.iter().enumerate() {
+      for (x, value) in row.enumerate() {
         let z = value.expect_float();
         if z <= 0.0 {
           continue;
         }
 
-        let x = j as f32 / width - 0.5;
-        let y = 0.5 - i as f32 / height;
+        let x_f32 = x as f32 / width - 0.5;
+        let y_f32 = 0.5 - y as f32 / height;
 
         let color = Hsl::from(z * Z_HUE_SCALE, 100.0, 50.0);
 
+        #[cfg(feature = "image")]
         self.point_cloud_renderer.push(
-          Point3::new(x * SCALE, y * SCALE, z * FINAL_Z_SCALE),
+          Point3::new(x_f32 * SCALE, y_f32 * SCALE, z * FINAL_Z_SCALE),
+          Point3::new(
+            color_resized.get_pixel(x as _, y as _).0[0] as f32 / 255.0,
+            color_resized.get_pixel(x as _, y as _).0[1] as f32 / 255.0,
+            color_resized.get_pixel(x as _, y as _).0[2] as f32 / 255.0,
+          ),
+        );
+        self.point_cloud_renderer.push(
+          Point3::new(x_f32 * SCALE, y_f32 * SCALE, z * FINAL_Z_SCALE),
           Point3::new(
             color.get_red() / 255.0,
             color.get_green() / 255.0,
@@ -164,13 +237,14 @@ impl State for AppState {
   }
 }
 
-fn main() {
-  let freenect_state = FreenectState::new().unwrap();
+fn main() -> anyhow::Result<()> {
+  let freenect_state = FreenectState::new()?;
 
   let window = Window::new("Kinect point cloud");
-  let app = AppState::new(freenect_state).unwrap();
+  let app = AppState::new(freenect_state)?;
 
   window.render_loop(app);
+  Ok(())
 }
 
 /// Structure which manages the display of long-living points.
