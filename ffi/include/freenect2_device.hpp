@@ -6,8 +6,8 @@
 
 #include "config.hpp"
 #include "macros.hpp"
-#include "rust/cxx.h"
 #include "registration.hpp"
+#include "rust/cxx.h"
 
 namespace libfreenect2_ffi {
   class Freenect2Device {

@@ -342,7 +342,7 @@ pub struct OwnedFrame {
 }
 
 impl OwnedFrame {
-  pub fn to_frame(&self) -> Frame<'_> {
+  pub fn to_frame(&self) -> Frame {
     Frame::new(unsafe {
       ffi::libfreenect2::create_frame(
         self.width as _,

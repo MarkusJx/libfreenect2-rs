@@ -79,8 +79,7 @@ LIBFREENECT2_RS_FUNC std::unique_ptr<Frame> libfreenect2_ffi::create_frame(
     uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
     unsigned char *data, uint32_t timestamp, uint32_t sequence, float exposure,
     float gain, float gamma, uint32_t status, FrameFormat format) {
-  auto *frame =
-      new libfreenect2::Frame(width, height, bytes_per_pixel, data);
+  auto *frame = new libfreenect2::Frame(width, height, bytes_per_pixel, data);
 
   frame->timestamp = timestamp;
   frame->sequence = sequence;

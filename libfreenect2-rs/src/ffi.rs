@@ -124,6 +124,7 @@ pub(crate) mod libfreenect2 {
     unsafe fn status(self: &Frame) -> u32;
     unsafe fn format(self: &Frame) -> FrameFormat;
 
+    #[allow(clippy::too_many_arguments)]
     unsafe fn create_frame(
       width: u64,
       height: u64,
