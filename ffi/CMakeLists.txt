@@ -40,5 +40,7 @@ add_library(ffi STATIC
         src/config.cpp
         include/config.hpp
         src/freenect2_device.cpp
-        include/freenect2_device.hpp)
+        include/freenect2_device.hpp
+        src/registration.cpp
+        include/registration.hpp)
 include_directories(ffi PRIVATE "../target/include" "../target/cxxbridge/libfreenect2-rs/src" "../target/cxxbridge" "include")

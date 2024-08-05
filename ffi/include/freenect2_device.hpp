@@ -7,6 +7,7 @@
 #include "config.hpp"
 #include "macros.hpp"
 #include "rust/cxx.h"
+#include "registration.hpp"
 
 namespace libfreenect2_ffi {
   class Freenect2Device {
@@ -35,6 +36,8 @@ namespace libfreenect2_ffi {
 
     LIBFREENECT2_MAYBE_UNUSED void set_config(
         const std::unique_ptr<Config>& config);
+
+    LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<Registration> get_registration();
 
    private:
     libfreenect2::Freenect2Device* device;

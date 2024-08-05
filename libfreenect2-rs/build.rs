@@ -44,7 +44,13 @@ fn main() -> anyhow::Result<()> {
 
   println!("cargo:rerun-if-changed=src/ffi.rs");
   build(
-    &["libfreenect2", "frame", "freenect2_device", "config"],
+    &[
+      "libfreenect2",
+      "frame",
+      "freenect2_device",
+      "config",
+      "registration",
+    ],
     &downloaded_file.include_path,
   );
 

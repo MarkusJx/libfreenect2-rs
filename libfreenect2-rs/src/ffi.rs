@@ -5,7 +5,7 @@ use std::panic::UnwindSafe;
 
 pub(crate) struct CallContext<'a> {
   pub(crate) func:
-    Box<dyn Fn(crate::types::frame_type::FrameType, crate::types::frame::Frame) + 'a>,
+    Box<dyn Fn(crate::types::frame_type::FrameType, crate::types::frame::Frame<'a>) + 'a>,
 }
 
 #[cxx::bridge]
@@ -47,12 +47,13 @@ pub(crate) mod libfreenect2 {
   unsafe extern "C++" {
     include!("frame.hpp");
     include!("libfreenect2.hpp");
+    include!("registration.hpp");
     include!("freenect2_device.hpp");
     include!("config.hpp");
 
     fn create_frame_listener<'a>(
       ctx: Box<CallContext<'a>>,
-      on_new_frame: fn(FrameType, UniquePtr<Frame<'a>>, &Box<CallContext>),
+      on_new_frame: fn(FrameType, UniquePtr<Frame<'a>>, &Box<CallContext<'a>>),
     ) -> Result<UniquePtr<FrameListener<'a>>>;
 
     pub type Freenect2;
@@ -84,6 +85,7 @@ pub(crate) mod libfreenect2 {
 
     unsafe fn get_serial_number(self: Pin<&mut Freenect2Device>) -> Result<String>;
     unsafe fn get_firmware_version(self: Pin<&mut Freenect2Device>) -> Result<String>;
+    unsafe fn get_registration(self: Pin<&mut Freenect2Device>) -> Result<UniquePtr<Registration>>;
 
     unsafe fn start(self: Pin<&mut Freenect2Device>) -> Result<bool>;
     unsafe fn start_streams(
@@ -122,6 +124,20 @@ pub(crate) mod libfreenect2 {
     unsafe fn status(self: &Frame) -> u32;
     unsafe fn format(self: &Frame) -> FrameFormat;
 
+    unsafe fn create_frame(
+      width: u64,
+      height: u64,
+      bytes_per_pixel: u64,
+      data: *mut u8,
+      timestamp: u32,
+      sequence: u32,
+      exposure: f32,
+      gain: f32,
+      gamma: f32,
+      status: u32,
+      format: FrameFormat,
+    ) -> UniquePtr<Frame<'static>>;
+
     pub type Config;
 
     fn get_min_depth(self: &Config) -> f32;
@@ -134,6 +150,30 @@ pub(crate) mod libfreenect2 {
     fn set_enable_edge_aware_filter(self: Pin<&mut Config>, enable: bool);
 
     fn create_config() -> Result<UniquePtr<Config>>;
+
+    pub type Registration;
+    unsafe fn map_depth_to_color(
+      self: &Registration,
+      depth: &Frame,
+      color: &Frame,
+      undistorted_depth: Pin<&mut Frame>,
+      color_depth_image: Pin<&mut Frame>,
+      enable_filter: bool,
+    ) -> Result<()>;
+    unsafe fn map_depth_to_full_color(
+      self: &Registration,
+      depth: &Frame,
+      color: &Frame,
+      undistorted_depth: Pin<&mut Frame>,
+      color_depth_image: Pin<&mut Frame>,
+      enable_filter: bool,
+      big_depth: Pin<&mut Frame>,
+    ) -> Result<()>;
+    unsafe fn undistort_depth(
+      self: &Registration,
+      depth: &Frame,
+      undistorted_depth: Pin<&mut Frame>,
+    ) -> Result<()>;
   }
 
   #[cfg(debug_assertions)]

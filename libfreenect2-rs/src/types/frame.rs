@@ -1,9 +1,31 @@
+use std::ops::Deref;
 use std::time::Duration;
 
 use crate::ffi;
+use crate::frame_data::{FrameValue, RGBX};
 use crate::types::frame_data::FrameDataIter;
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum FrameReference<'a> {
+  Owned(Frame<'a>),
+  Borrowed(&'a Frame<'a>),
+}
+
+impl<'a> Deref for FrameReference<'a> {
+  type Target = Frame<'a>;
+
+  fn deref(&self) -> &Self::Target {
+    match self {
+      FrameReference::Owned(frame) => frame,
+      FrameReference::Borrowed(frame) => frame,
+    }
+  }
+}
+
+pub trait AsFrame<'a> {
+  fn as_frame(&'a self) -> FrameReference<'a>;
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum FrameFormat {
   Invalid,
   Raw,
@@ -34,6 +56,19 @@ impl From<ffi::libfreenect2::FrameFormat> for FrameFormat {
   }
 }
 
+impl From<FrameFormat> for ffi::libfreenect2::FrameFormat {
+  fn from(value: FrameFormat) -> Self {
+    match value {
+      FrameFormat::Raw => ffi::libfreenect2::FrameFormat::Raw,
+      FrameFormat::Float => ffi::libfreenect2::FrameFormat::Float,
+      FrameFormat::RGBX => ffi::libfreenect2::FrameFormat::RGBX,
+      FrameFormat::BGRX => ffi::libfreenect2::FrameFormat::BGRX,
+      FrameFormat::Gray => ffi::libfreenect2::FrameFormat::Gray,
+      FrameFormat::Invalid => ffi::libfreenect2::FrameFormat::Invalid,
+    }
+  }
+}
+
 pub trait Freenect2Frame {
   fn width(&self) -> usize;
 
@@ -53,6 +88,16 @@ pub trait Freenect2Frame {
   fn raw_data_len(&self) -> usize {
     self.width() * self.height() * self.bytes_per_pixel()
   }
+
+  fn sequence(&self) -> u32;
+
+  fn exposure(&self) -> f32;
+
+  fn gain(&self) -> f32;
+
+  fn gamma(&self) -> f32;
+
+  fn status(&self) -> u32;
 
   fn format(&self) -> FrameFormat;
 
@@ -103,6 +148,47 @@ pub trait Freenect2Frame {
       FrameFormat::Invalid | FrameFormat::Raw => FrameImage::Invalid,
     }
   }
+
+  fn get_pixel(&self, x: usize, y: usize) -> FrameValue {
+    assert!(x < self.width(), "x: {} >= width: {}", x, self.width());
+    assert!(y < self.height(), "y: {} >= height: {}", y, self.height());
+
+    let index = (y * self.width() + x) * self.bytes_per_pixel();
+    match self.format() {
+      FrameFormat::RGBX => {
+        let data = self.raw_data();
+        FrameValue::RGBX(RGBX {
+          r: data[index],
+          g: data[index + 1],
+          b: data[index + 2],
+          x: data[index + 3],
+        })
+      }
+      FrameFormat::BGRX => {
+        let data = self.raw_data();
+        FrameValue::RGBX(RGBX {
+          r: data[index + 2],
+          g: data[index + 1],
+          b: data[index],
+          x: data[index + 3],
+        })
+      }
+      FrameFormat::Gray => {
+        let data = self.raw_data();
+        FrameValue::Gray(data[index])
+      }
+      FrameFormat::Float => {
+        let data = self.raw_data();
+        FrameValue::Float(f32::from_ne_bytes(
+          data[index..index + 4].try_into().unwrap(),
+        ))
+      }
+      FrameFormat::Raw => {
+        FrameValue::Raw(self.raw_data()[index..index + self.bytes_per_pixel()].to_vec())
+      }
+      FrameFormat::Invalid => FrameValue::Invalid(self.raw_data()[index]),
+    }
+  }
 }
 
 pub struct Frame<'a> {
@@ -114,17 +200,85 @@ impl<'a> Frame<'a> {
     Self { inner }
   }
 
+  pub fn depth() -> Self {
+    Self::new(unsafe {
+      ffi::libfreenect2::create_frame(
+        512,
+        424,
+        4,
+        std::ptr::null_mut(),
+        0,
+        0,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        ffi::libfreenect2::FrameFormat::Float,
+      )
+    })
+  }
+
+  pub fn color_for_depth() -> Self {
+    Self::new(unsafe {
+      ffi::libfreenect2::create_frame(
+        512,
+        424,
+        4,
+        std::ptr::null_mut(),
+        0,
+        0,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        ffi::libfreenect2::FrameFormat::RGBX,
+      )
+    })
+  }
+
+  pub fn depth_full_color() -> Self {
+    Self::new(unsafe {
+      ffi::libfreenect2::create_frame(
+        1920,
+        1082,
+        4,
+        std::ptr::null_mut(),
+        0,
+        0,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        ffi::libfreenect2::FrameFormat::Float,
+      )
+    })
+  }
+
   pub fn to_owned(&self) -> OwnedFrame {
-    OwnedFrame::new(
-      self.width(),
-      self.height(),
-      self.bytes_per_pixel(),
-      self.timestamp(),
-      self.raw_data().to_vec(),
-      self.format(),
-    )
+    OwnedFrame {
+      width: self.width(),
+      height: self.height(),
+      bytes_per_pixel: self.bytes_per_pixel(),
+      timestamp: self.timestamp(),
+      data: self.raw_data().to_vec(),
+      sequence: self.sequence(),
+      exposure: self.exposure(),
+      gain: self.gain(),
+      gamma: self.gamma(),
+      status: self.status(),
+      format: self.format(),
+    }
   }
 }
+
+impl<'a> AsFrame<'a> for Frame<'a> {
+  fn as_frame(&'a self) -> FrameReference<'a> {
+    FrameReference::Borrowed(self)
+  }
+}
+
+unsafe impl Send for Frame<'_> {}
+unsafe impl Sync for Frame<'_> {}
 
 impl Freenect2Frame for Frame<'_> {
   fn width(&self) -> usize {
@@ -147,37 +301,63 @@ impl Freenect2Frame for Frame<'_> {
     unsafe { std::slice::from_raw_parts(self.inner.data(), self.raw_data_len()) }
   }
 
+  fn sequence(&self) -> u32 {
+    unsafe { self.inner.sequence() }
+  }
+
+  fn exposure(&self) -> f32 {
+    unsafe { self.inner.exposure() }
+  }
+
+  fn gain(&self) -> f32 {
+    unsafe { self.inner.gain() }
+  }
+
+  fn gamma(&self) -> f32 {
+    unsafe { self.inner.gamma() }
+  }
+
+  fn status(&self) -> u32 {
+    unsafe { self.inner.status() }
+  }
+
   fn format(&self) -> FrameFormat {
     unsafe { self.inner.format() }.into()
   }
 }
 
+#[derive(Clone)]
 pub struct OwnedFrame {
   width: usize,
   height: usize,
   bytes_per_pixel: usize,
   timestamp: u32,
   data: Vec<u8>,
+  sequence: u32,
+  exposure: f32,
+  gain: f32,
+  gamma: f32,
+  status: u32,
   format: FrameFormat,
 }
 
 impl OwnedFrame {
-  fn new(
-    width: usize,
-    height: usize,
-    bytes_per_pixel: usize,
-    timestamp: u32,
-    data: Vec<u8>,
-    format: FrameFormat,
-  ) -> Self {
-    Self {
-      width,
-      height,
-      bytes_per_pixel,
-      timestamp,
-      data,
-      format,
-    }
+  pub fn to_frame(&self) -> Frame<'_> {
+    Frame::new(unsafe {
+      ffi::libfreenect2::create_frame(
+        self.width as _,
+        self.height as _,
+        self.bytes_per_pixel as _,
+        self.data.as_ptr() as _,
+        self.timestamp,
+        self.sequence,
+        self.exposure,
+        self.gain,
+        self.gamma,
+        self.status,
+        self.format.into(),
+      )
+    })
   }
 }
 
@@ -202,7 +382,39 @@ impl Freenect2Frame for OwnedFrame {
     &self.data
   }
 
+  fn sequence(&self) -> u32 {
+    self.sequence
+  }
+
+  fn exposure(&self) -> f32 {
+    self.exposure
+  }
+
+  fn gain(&self) -> f32 {
+    self.gain
+  }
+
+  fn gamma(&self) -> f32 {
+    self.gamma
+  }
+
+  fn status(&self) -> u32 {
+    self.status
+  }
+
   fn format(&self) -> FrameFormat {
     self.format
+  }
+}
+
+impl<'a> AsFrame<'a> for OwnedFrame {
+  fn as_frame(&'a self) -> FrameReference<'a> {
+    FrameReference::Owned(self.to_frame())
+  }
+}
+
+impl From<Frame<'_>> for OwnedFrame {
+  fn from(frame: Frame) -> Self {
+    frame.to_owned()
   }
 }

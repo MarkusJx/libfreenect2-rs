@@ -1,6 +1,6 @@
 use crate::ffi;
 
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub enum FrameType {
   Color,
   Depth,

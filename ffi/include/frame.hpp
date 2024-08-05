@@ -31,9 +31,14 @@ namespace libfreenect2_ffi {
 
     ~Frame();
 
-   private:
     libfreenect2::Frame* frame;
   };
+
+  LIBFREENECT2_RS_FUNC std::unique_ptr<Frame> create_frame(
+      uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
+      unsigned char* data, uint32_t timestamp, uint32_t sequence,
+      float exposure, float gain, float gamma, uint32_t status,
+      FrameFormat format);
 
   LIBFREENECT2_RS_FUNC std::unique_ptr<libfreenect2::FrameListener>
   create_frame_listener(

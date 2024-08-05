@@ -75,6 +75,24 @@ class FrameListenerImpl : public libfreenect2::FrameListener {
   const rust::cxxbridge1::Box<CallContext> ctx;
 };
 
+LIBFREENECT2_RS_FUNC std::unique_ptr<Frame> libfreenect2_ffi::create_frame(
+    uint64_t width, uint64_t height, uint64_t bytes_per_pixel,
+    unsigned char *data, uint32_t timestamp, uint32_t sequence, float exposure,
+    float gain, float gamma, uint32_t status, FrameFormat format) {
+  auto *frame =
+      new libfreenect2::Frame(width, height, bytes_per_pixel, data);
+
+  frame->timestamp = timestamp;
+  frame->sequence = sequence;
+  frame->exposure = exposure;
+  frame->gain = gain;
+  frame->gamma = gamma;
+  frame->status = status;
+  frame->format = static_cast<libfreenect2::Frame::Format>(format);
+
+  return std::make_unique<Frame>(frame);
+}
+
 LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<libfreenect2::FrameListener>
 libfreenect2_ffi::create_frame_listener(
     rust::cxxbridge1::Box<CallContext> ctx,

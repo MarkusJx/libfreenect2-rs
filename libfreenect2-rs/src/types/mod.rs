@@ -5,3 +5,4 @@ pub mod frame_listener;
 pub mod frame_type;
 pub mod freenect2;
 pub mod freenect2_device;
+pub mod registration;

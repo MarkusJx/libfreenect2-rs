@@ -49,6 +49,10 @@ LIBFREENECT2_MAYBE_UNUSED void Freenect2Device::set_config(
   device->setConfiguration(config->config);
 }
 
+LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<Registration> Freenect2Device::get_registration() {
+  return std::make_unique<Registration>(device);
+}
+
 Freenect2Device::~Freenect2Device() {
   delete device;
 }
