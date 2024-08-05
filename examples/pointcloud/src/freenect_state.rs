@@ -3,15 +3,16 @@ use crate::RenderType;
 use anyhow::anyhow;
 use libfreenect2_rs::config::Config;
 use libfreenect2_rs::frame::{Frame, OwnedFrame};
-use libfreenect2_rs::frame_listener::{FrameMap, MultiFrameListener};
+use libfreenect2_rs::frame_listener::{
+  FrameMap, MultiFrameListener, OwnedFramesMultiFrameListener,
+};
 use libfreenect2_rs::frame_type::FrameType;
 use libfreenect2_rs::freenect2::Freenect2;
 use libfreenect2_rs::freenect2_device::Freenect2Device;
 use libfreenect2_rs::registration::Registration;
 use once_cell::sync::OnceCell;
-use std::collections::HashSet;
 
-static FRAME_LISTENER: OnceCell<MultiFrameListener<'static, OwnedFrame>> = OnceCell::new();
+static FRAME_LISTENER: OnceCell<OwnedFramesMultiFrameListener> = OnceCell::new();
 static mut FREENECT: Option<Freenect2> = None;
 static CONFIG: OnceCell<Config> = OnceCell::new();
 
@@ -28,14 +29,13 @@ impl FreenectState<'_> {
       FREENECT.as_mut().unwrap().open_default_device()?
     };
 
-    let frame_types = if render_type.is_color() {
-      HashSet::from([FrameType::Color, FrameType::Ir, FrameType::Depth])
+    let frame_types: &[FrameType] = if render_type.is_color() {
+      &[FrameType::Color, FrameType::Ir, FrameType::Depth]
     } else {
-      HashSet::from([FrameType::Ir, FrameType::Depth])
+      &[FrameType::Ir, FrameType::Depth]
     };
 
-    let frame_listener =
-      FRAME_LISTENER.get_or_try_init(|| MultiFrameListener::new(&frame_types))?;
+    let frame_listener = FRAME_LISTENER.get_or_try_init(|| MultiFrameListener::new(frame_types))?;
 
     device.set_ir_and_depth_frame_listener(frame_listener)?;
     device.set_color_frame_listener(frame_listener)?;
