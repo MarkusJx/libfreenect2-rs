@@ -1,9 +1,13 @@
 use crate::ffi;
 
+/// The type of a Kinect frame.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub enum FrameType {
+  /// A color frame.
   Color,
+  /// A depth frame.
   Depth,
+  /// An infrared frame.
   Ir,
 }
 

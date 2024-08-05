@@ -32,6 +32,24 @@ unsafe impl Send for Freenect2Impl {}
 unsafe impl Sync for Freenect2Impl {}
 
 /// Wrapper around libfreenect2's `Freenect2` class.
+/// Used to manage the connected devices.
+/// The `Freenect2` instance is used to open devices.
+///
+/// # Example
+/// ```no_run
+/// use libfreenect2_rs::freenect2::Freenect2;
+///
+/// let mut freenect2 = Freenect2::new().unwrap();
+/// let num_devices = freenect2.enumerate_devices().unwrap();
+/// println!("Found {} devices", num_devices);
+///
+/// let serial = freenect2.get_default_device_serial_number().unwrap();
+/// println!("Default device serial number: {}", serial);
+///
+/// let mut device = freenect2.open_default_device().unwrap();
+/// let serial = device.get_serial_number().unwrap();
+/// println!("Opened device with serial number: {}", serial);
+/// ```
 pub struct Freenect2(Arc<Mutex<Freenect2Impl>>);
 
 impl Freenect2 {
@@ -56,11 +74,24 @@ impl Freenect2 {
     Ok(Self(instance))
   }
 
+  /// Enumerate the connected devices.
+  /// Returns the number of devices found.
+  ///
+  /// # Errors
+  /// Returns an error if the underlying C++ function fails.
   pub fn enumerate_devices(&mut self) -> anyhow::Result<i32> {
     let mut this = self.get_mut()?;
     this.get_mut()?.enumerate_devices().map_err(Into::into)
   }
 
+  /// Get the serial number of the device at the specified index.
+  /// Returns the serial number as a string.
+  ///
+  /// # Arguments
+  /// * `idx` - The index of the device to get the serial number of.
+  ///
+  /// # Errors
+  /// Returns an error if the device at the specified index is not found.
   pub fn get_device_serial_number(&mut self, idx: i32) -> anyhow::Result<String> {
     let mut this = self.get_mut()?;
     this
@@ -69,6 +100,11 @@ impl Freenect2 {
       .map_err(Into::into)
   }
 
+  /// Get the serial number of the default device.
+  /// Returns the serial number as a string.
+  ///
+  /// # Errors
+  /// Returns an error if no default device is found.
   pub fn get_default_device_serial_number(&mut self) -> anyhow::Result<String> {
     let mut this = self.get_mut()?;
     this
@@ -77,6 +113,11 @@ impl Freenect2 {
       .map_err(Into::into)
   }
 
+  /// Open the default device.
+  /// Returns a new [`Freenect2Device`] instance.
+  ///
+  /// # Errors
+  /// Returns an error if no default device is found.
   pub fn open_default_device(&mut self) -> anyhow::Result<Freenect2Device> {
     let mut this = self.get_mut()?;
     unsafe {
@@ -88,6 +129,14 @@ impl Freenect2 {
     }
   }
 
+  /// Open the device at the specified index.
+  /// Returns a new [`Freenect2Device`] instance.
+  ///
+  /// # Arguments
+  /// * `idx` - The index of the device to open.
+  ///
+  /// # Errors
+  /// Returns an error if the device at the specified index is not found.
   pub fn open_device_by_id(&mut self, idx: i32) -> anyhow::Result<Freenect2Device> {
     let mut this = self.get_mut()?;
     unsafe {
@@ -99,6 +148,13 @@ impl Freenect2 {
     }
   }
 
+  /// Open the device with the specified serial number.
+  ///
+  /// # Arguments
+  /// * `serial` - The serial number of the device to open.
+  ///
+  /// # Errors
+  /// Returns an error if the device with the specified serial number is not found.
   pub fn open_device_by_serial(&mut self, serial: &str) -> anyhow::Result<Freenect2Device> {
     let mut this = self.get_mut()?;
     unsafe {

@@ -32,6 +32,8 @@ macro_rules! ensure_frame {
   };
 }
 
+/// A registration object that can be used to map depth frames to color frames.
+/// Can be created by calling [`crate::freenect2_device::Freenect2Device::get_registration`].
 pub struct Registration(UniquePtr<libfreenect2::Registration>);
 
 impl Registration {
@@ -39,6 +41,62 @@ impl Registration {
     Self(inner)
   }
 
+  /// Maps a depth frame to a color frame.
+  /// The resulting frames are stored in `undistorted_depth` and `color_depth_image`.
+  /// If `enable_filter` is true, pixels not visible will be filtered out.
+  ///
+  /// # Arguments
+  /// * `depth` - The depth frame to map.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  /// * `color` - The color frame to map to.
+  ///    Must be of format [`FrameFormat::RGBX`] or [`FrameFormat::BGRX`] and have a resolution of 1920x1080.
+  /// * `undistorted_depth` - The resulting undistorted depth frame.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  ///    Can be created using [`Frame::depth`].
+  /// * `color_depth_image` - The resulting color depth image frame.
+  ///    Must be of format [`FrameFormat::RGBX`] or [`FrameFormat::BGRX`] and have a resolution of 512x424.
+  ///    The exact format depends on the format of the `color` frame and will be automatically set.
+  ///    Can be created using [`Frame::color_for_depth`].
+  /// * `enable_filter` - Whether to filter out pixels not visible to both cameras.
+  ///
+  /// # Errors
+  /// Returns an error if the frames have invalid formats or resolutions.
+  ///
+  /// # Example
+  /// ```ignored
+  /// use std::collections::HashSet;
+  /// use libfreenect2_rs::frame::{Frame, FrameFormat};
+  /// use libfreenect2_rs::frame_listener::OwnedFramesMultiFrameListener;
+  /// use libfreenect2_rs::frame_type::FrameType;
+  /// use libfreenect2_rs::freenect2::Freenect2;
+  ///
+  /// let mut freenect2 = Freenect2::new().unwrap();
+  /// let mut device = freenect2.open_default_device().unwrap();
+  ///
+  /// let frame_listener = OwnedFramesMultiFrameListener::new(&[FrameType::Color, FrameType::Depth]).unwrap();
+  ///
+  /// device.set_color_frame_listener(&frame_listener).unwrap();
+  /// device.set_ir_and_depth_frame_listener(&frame_listener).unwrap();
+  ///
+  /// device.start().unwrap();
+  /// let registration = device.get_registration().unwrap();
+  ///
+  /// let frames = frame_listener.get_frames().unwrap();
+  ///
+  /// let color = frames.expect_color().unwrap();
+  /// let depth = frames.expect_depth().unwrap();
+  ///
+  /// let mut undistorted_depth = Frame::depth();
+  /// let mut color_image = Frame::color_for_depth();
+  ///
+  /// registration.map_depth_to_color(
+  ///   depth,
+  ///   color,
+  ///   &mut undistorted_depth,
+  ///   &mut color_image,
+  ///   true
+  /// ).unwrap();
+  /// ```
   pub fn map_depth_to_color<'a, 'b, F1: AsFrame<'a>, F2: AsFrame<'b>>(
     &self,
     depth: &'a F1,
@@ -69,6 +127,29 @@ impl Registration {
     }
   }
 
+  /// Map a depth frame onto a color frame.
+  /// The resulting depth frame will have the same resolution
+  /// as the color frame plus one blank line at the top and bottom (1920x1082).
+  ///
+  /// # Arguments
+  /// * `depth` - The depth frame to map.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  /// * `color` - The color frame to map to.
+  ///    Must be of format [`FrameFormat::RGBX`] or [`FrameFormat::BGRX`] and have a resolution of 1920x1080.
+  /// * `undistorted_depth` - The resulting undistorted depth frame.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  ///    Can be created using [`Frame::depth`].
+  /// * `color_depth_image` - The resulting color depth image frame.
+  ///    Must be of format [`FrameFormat::RGBX`] or [`FrameFormat::BGRX`] and have a resolution of 512x424.
+  ///    The exact format depends on the format of the `color` frame and will be automatically set.
+  ///    Can be created using [`Frame::color_for_depth`].
+  /// * `enable_filter` - Whether to filter out pixels not visible to both cameras.
+  /// * `big_depth` - The scaled up depth frame.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 1920x1082.
+  ///    Can be created using [`Frame::depth_full_color`].
+  ///
+  /// # Errors
+  /// Returns an error if the frames have invalid formats or resolutions.
   pub fn map_depth_to_full_color<'a, 'b, F1: AsFrame<'a>, F2: AsFrame<'b>>(
     &self,
     depth: &'a F1,
@@ -102,6 +183,17 @@ impl Registration {
     }
   }
 
+  /// Un-distort a depth frame.
+  ///
+  /// # Arguments
+  /// * `depth` - The depth frame to map.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  /// * `undistorted_depth` - The resulting undistorted depth frame.
+  ///    Must be of format [`FrameFormat::Float`] and have a resolution of 512x424.
+  ///    Can be created using [`Frame::depth`].
+  ///
+  /// # Errors
+  /// Returns an error if the frames have invalid formats or resolutions.
   pub fn undistort_depth<'a, F: AsFrame<'a>>(
     &self,
     depth: &'a F,
