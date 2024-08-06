@@ -6,6 +6,9 @@ use crate::frame_listener::AsFrameListener;
 use crate::types::config::Config;
 use crate::types::registration::Registration;
 
+pub use ffi::libfreenect2::LedMode;
+pub use ffi::libfreenect2::LedSettings;
+
 /// Wrapper around libfreenect2's `Freenect2Device` class.
 /// Used to manage a single connected device.
 /// The `Freenect2Device` instance is used to start and stop streams,
@@ -287,6 +290,70 @@ impl<'a> Freenect2Device<'a> {
         .ok_or(anyhow!("Could not get freenect2 device as mutable"))?
         .get_registration()
         .map(Registration::new)
+        .map_err(Into::into)
+    }
+  }
+
+  /// Set the LED settings of the device.
+  /// The device must be started using [`Self::start`] or
+  /// [`Self::start_streams`] before setting the LED settings.
+  ///
+  /// # Arguments
+  /// * `settings` - The LED settings to set.
+  ///
+  /// # Errors
+  /// Returns an error if the LED settings could not be set or if the settings are invalid.
+  ///
+  /// # Example
+  /// ```no_run
+  /// use libfreenect2_rs::freenect2::Freenect2;
+  /// use libfreenect2_rs::freenect2_device::{LedMode, LedSettings};
+  ///
+  /// let mut freenect2 = Freenect2::new().unwrap();
+  /// let mut device = freenect2.open_default_device().unwrap();
+  ///
+  /// device.start().unwrap();
+  /// device.set_led_settings(&LedSettings {
+  ///   id: 1,
+  ///   mode: LedMode::Blink,
+  ///   start_level: 0,
+  ///   stop_level: 1000,
+  ///   interval_ms: 500,
+  /// }).unwrap();
+  /// ```
+  pub fn set_led_settings(&mut self, settings: &LedSettings) -> anyhow::Result<()> {
+    anyhow::ensure!(
+      !self.closed,
+      "Device must not be closed when setting LED settings"
+    );
+    anyhow::ensure!(
+      self.started,
+      "Device must be started before setting LED settings"
+    );
+    anyhow::ensure!(
+      settings.mode == LedMode::Constant || settings.mode == LedMode::Blink,
+      "Mode must be either Constant or Blink"
+    );
+    anyhow::ensure!(settings.id == 0 || settings.id == 1, "ID must be 0 or 1");
+    anyhow::ensure!(
+      settings.start_level <= 1000,
+      "Start level must be between 0 and 1000"
+    );
+    anyhow::ensure!(
+      settings.stop_level <= 1000,
+      "Stop level must be between 0 and 1000 and greater than start level"
+    );
+    anyhow::ensure!(
+      settings.mode != LedMode::Blink || settings.interval_ms > 0,
+      "Interval must be greater than 0 milliseconds"
+    );
+
+    unsafe {
+      self
+        .device
+        .as_mut()
+        .ok_or(anyhow!("Could not get freenect2 device as mutable"))?
+        .set_led_settings(settings)
         .map_err(Into::into)
     }
   }

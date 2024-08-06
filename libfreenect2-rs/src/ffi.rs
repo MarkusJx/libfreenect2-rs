@@ -45,6 +45,33 @@ pub(crate) mod libfreenect2 {
     Debug = 4,
   }
 
+  /// Kinect LED settings
+  pub struct LedSettings {
+    /// The ID of the LED. Must be either 0 or 1.
+    id: u16,
+    /// The LED mode. Can be either `Constant` or `Blink`.
+    mode: LedMode,
+    /// The LED intensity at the start of the interval.
+    /// Must be in the range \[0, 1000].
+    start_level: u16,
+    /// The LED intensity at the end of the interval.
+    /// Must be in the range \[0, 1000].
+    /// Does not need to be greater than `start_level`.
+    stop_level: u16,
+    /// Blink interval in milliseconds.
+    /// Only used if `mode` is `Blink`.
+    /// Must be greater than 0.
+    interval_ms: u16,
+  }
+
+  /// LED mode
+  pub enum LedMode {
+    /// Constant LED intensity.
+    Constant = 0,
+    /// Blinking LED.
+    Blink = 1,
+  }
+
   extern "Rust" {
     type CallContext<'a>;
   }
@@ -52,6 +79,7 @@ pub(crate) mod libfreenect2 {
   #[namespace = "libfreenect2"]
   unsafe extern "C++" {
     include!("libfreenect2/frame_listener.hpp");
+    include!("libfreenect2/led_settings.h");
 
     pub type FrameListener<'a>;
   }
@@ -122,6 +150,11 @@ pub(crate) mod libfreenect2 {
     unsafe fn set_config<'a>(
       self: Pin<&mut Freenect2Device<'a>>,
       config: &'a UniquePtr<Config>,
+    ) -> Result<()>;
+
+    unsafe fn set_led_settings(
+      self: Pin<&mut Freenect2Device>,
+      settings: &LedSettings,
     ) -> Result<()>;
 
     pub type Frame<'a>;

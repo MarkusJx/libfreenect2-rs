@@ -7,3 +7,4 @@ ffi/include/cxx.h
 ffi/.cache/
 ffi/build/
 ffi/clang/
+ffi/vs/

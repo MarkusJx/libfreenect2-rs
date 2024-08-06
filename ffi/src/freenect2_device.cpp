@@ -1,5 +1,9 @@
 #include "freenect2_device.hpp"
 
+#include <cstdint>
+
+#include "libfreenect2-rs/src/ffi.rs.h"
+
 using namespace libfreenect2_ffi;
 
 Freenect2Device::Freenect2Device(libfreenect2::Freenect2Device* device)
@@ -52,6 +56,16 @@ LIBFREENECT2_MAYBE_UNUSED void Freenect2Device::set_config(
 LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<Registration>
 Freenect2Device::get_registration() {
   return std::make_unique<Registration>(device);
+}
+
+void Freenect2Device::set_led_settings(const LedSettings& settings) {
+  libfreenect2::LedSettings led_settings = {
+      settings.id,          static_cast<uint16_t>(settings.mode),
+      settings.start_level, settings.stop_level,
+      settings.interval_ms, 0,
+  };
+
+  device->setLedStatus(led_settings);
 }
 
 Freenect2Device::~Freenect2Device() {

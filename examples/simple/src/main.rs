@@ -1,6 +1,7 @@
 use libfreenect2_rs::config::Config;
 use libfreenect2_rs::frame_listener::FrameListener;
 use libfreenect2_rs::freenect2::Freenect2;
+use libfreenect2_rs::freenect2_device::{LedMode, LedSettings};
 use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
@@ -36,9 +37,23 @@ fn main() -> anyhow::Result<()> {
   device.set_ir_and_depth_frame_listener(&listener)?;
 
   device.start()?;
+  device.set_led_settings(&LedSettings {
+    id: 1,
+    mode: LedMode::Blink,
+    start_level: 0,
+    stop_level: 1000,
+    interval_ms: 500,
+  })?;
+  device.set_led_settings(&LedSettings {
+    id: 0,
+    mode: LedMode::Blink,
+    start_level: 1000,
+    stop_level: 0,
+    interval_ms: 500,
+  })?;
 
   log::info!("Sleeping for 5 seconds...");
-  std::thread::sleep(std::time::Duration::from_secs(5));
+  std::thread::sleep(std::time::Duration::from_secs(50));
 
   device.stop()?;
 

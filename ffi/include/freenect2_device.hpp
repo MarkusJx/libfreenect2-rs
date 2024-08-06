@@ -9,6 +9,8 @@
 #include "registration.hpp"
 #include "rust/cxx.h"
 
+struct LedSettings;
+
 namespace libfreenect2_ffi {
   class Freenect2Device {
    public:
@@ -37,10 +39,16 @@ namespace libfreenect2_ffi {
     LIBFREENECT2_MAYBE_UNUSED void set_config(
         const std::unique_ptr<Config>& config);
 
-    LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<Registration> get_registration();
+    LIBFREENECT2_RS_FUNC std::unique_ptr<Registration> get_registration();
+
+    LIBFREENECT2_MAYBE_UNUSED void set_led_settings(
+        const LedSettings& settings);
 
    private:
     libfreenect2::Freenect2Device* device;
+
+   public:
+    Freenect2Device() = default;
   };
 }  // namespace libfreenect2_ffi
 
