@@ -32,6 +32,19 @@ pub(crate) mod libfreenect2 {
     Gray = 6,
   }
 
+  pub enum LogLevel {
+    /// No logging.
+    None = 0,
+    /// Log errors only.
+    Error = 1,
+    /// Log warnings and errors.
+    Warning = 2,
+    /// Log info messages, warnings, and errors.
+    Info = 3,
+    /// Log debug messages, info messages, warnings, and errors.
+    Debug = 4,
+  }
+
   extern "Rust" {
     type CallContext<'a>;
   }
@@ -50,6 +63,7 @@ pub(crate) mod libfreenect2 {
     include!("registration.hpp");
     include!("freenect2_device.hpp");
     include!("config.hpp");
+    include!("logger.hpp");
 
     fn create_frame_listener<'a>(
       ctx: Box<CallContext<'a>>,
@@ -175,6 +189,8 @@ pub(crate) mod libfreenect2 {
       depth: &Frame,
       undistorted_depth: Pin<&mut Frame>,
     ) -> Result<()>;
+
+    fn create_logger(log_fn: fn(LogLevel, &String)) -> Result<()>;
   }
 
   #[cfg(debug_assertions)]

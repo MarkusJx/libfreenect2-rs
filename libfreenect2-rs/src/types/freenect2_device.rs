@@ -197,7 +197,7 @@ impl<'a> Freenect2Device<'a> {
   ///
   /// # Errors
   /// Returns an error if the listener could not be set.
-  pub fn set_color_frame_listener<L: AsFrameListener<'a>>(
+  pub fn set_color_frame_listener<'b: 'a, L: AsFrameListener<'b>>(
     &mut self,
     listener: &'a L,
   ) -> anyhow::Result<()> {
@@ -224,7 +224,7 @@ impl<'a> Freenect2Device<'a> {
   ///
   /// # Errors
   /// Returns an error if the listener could not be set.
-  pub fn set_ir_and_depth_frame_listener<L: AsFrameListener<'a>>(
+  pub fn set_ir_and_depth_frame_listener<'b: 'a, L: AsFrameListener<'b>>(
     &mut self,
     listener: &'a L,
   ) -> anyhow::Result<()> {
@@ -252,10 +252,6 @@ impl<'a> Freenect2Device<'a> {
     anyhow::ensure!(
       !self.closed,
       "Device must not be closed when setting config"
-    );
-    anyhow::ensure!(
-      !self.started,
-      "Device must be stopped before setting config"
     );
 
     unsafe {

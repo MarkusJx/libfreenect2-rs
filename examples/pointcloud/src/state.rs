@@ -66,18 +66,13 @@ impl State for AppState {
     self.last_render_start = render_start;
     self.point_cloud_renderer.clear();
 
+    let depth = frames.expect_depth().unwrap();
+    // Correct the aspect ratio of the frame since we are drawing a square.
+    let y_scale = depth.height() as f32 / depth.width() as f32;
+
     let start = Instant::now();
     if self.render_type.is_color() {
-      let depth = frames.expect_depth().unwrap();
       let color = frames.expect_color().unwrap();
-
-      // The image is for some reason a square, so we need to scale the
-      // x-axis to make it look correct.
-      let additional_scale = if self.render_type == RenderType::FullColor {
-        1.5
-      } else {
-        1.0
-      };
 
       // The first line of the depth frame is empty if the depth frame is
       // in the same frame as the color frame (1920x1080).
@@ -101,11 +96,7 @@ impl State for AppState {
           let color_pixel = color_pixel.expect_rgbx();
 
           self.point_cloud_renderer.push(
-            Point3::new(
-              x_f32 * SCALE * additional_scale,
-              y_f32 * SCALE,
-              z * FINAL_Z_SCALE,
-            ),
+            Point3::new(x_f32 * SCALE, y_f32 * SCALE * y_scale, z * FINAL_Z_SCALE),
             Point3::new(
               color_pixel.r as f32 / 255.0,
               color_pixel.g as f32 / 255.0,
@@ -115,8 +106,6 @@ impl State for AppState {
         }
       }
     } else {
-      let depth = frames.expect_depth().unwrap();
-
       let width = depth.width() as f32;
       let height = depth.height() as f32;
       for (y, row) in depth.iter().enumerate() {
@@ -132,7 +121,7 @@ impl State for AppState {
           let color = Hsl::from(z * Z_HUE_SCALE, 100.0, 50.0);
 
           self.point_cloud_renderer.push(
-            Point3::new(x_f32 * SCALE, y_f32 * SCALE, z * FINAL_Z_SCALE),
+            Point3::new(x_f32 * SCALE, y_f32 * SCALE * y_scale, z * FINAL_Z_SCALE),
             Point3::new(
               color.get_red() / 255.0,
               color.get_green() / 255.0,

@@ -63,7 +63,7 @@ impl Registration {
   /// Returns an error if the frames have invalid formats or resolutions.
   ///
   /// # Example
-  /// ```ignored
+  /// ```no_run
   /// use std::collections::HashSet;
   /// use libfreenect2_rs::frame::{Frame, FrameFormat};
   /// use libfreenect2_rs::frame_listener::OwnedFramesMultiFrameListener;
@@ -71,9 +71,10 @@ impl Registration {
   /// use libfreenect2_rs::freenect2::Freenect2;
   ///
   /// let mut freenect2 = Freenect2::new().unwrap();
+  /// let frame_listener = OwnedFramesMultiFrameListener::new(&[
+  ///   FrameType::Color, FrameType::Depth
+  /// ]).unwrap();
   /// let mut device = freenect2.open_default_device().unwrap();
-  ///
-  /// let frame_listener = OwnedFramesMultiFrameListener::new(&[FrameType::Color, FrameType::Depth]).unwrap();
   ///
   /// device.set_color_frame_listener(&frame_listener).unwrap();
   /// device.set_ir_and_depth_frame_listener(&frame_listener).unwrap();

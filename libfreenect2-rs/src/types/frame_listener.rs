@@ -13,12 +13,16 @@ use std::sync::{Arc, Mutex};
 /// A trait for types that can be converted into a [`FrameListener`].
 pub trait AsFrameListener<'a> {
   /// Convert the value into a [`FrameListener`].
-  fn as_frame_listener(&'a self) -> &'a FrameListener<'a>;
+  fn as_frame_listener(&self) -> &FrameListener<'a>;
 }
 
 /// A listener for new frames.
 /// [`MultiFrameListener`] may be used instead if
 /// you need to listen for multiple frame types at once.
+///
+/// Must be passed to [`crate::freenect2_device::Freenect2Device::set_color_frame_listener`]
+/// or [`crate::freenect2_device::Freenect2Device::set_ir_and_depth_frame_listener`]
+/// to receive frames.
 pub struct FrameListener<'a>(pub(crate) UniquePtr<ffi::libfreenect2::FrameListener<'a>>);
 
 impl<'a> FrameListener<'a> {
@@ -80,7 +84,7 @@ impl<'a> FrameListener<'a> {
 }
 
 impl<'a> AsFrameListener<'a> for FrameListener<'a> {
-  fn as_frame_listener(&'a self) -> &'a FrameListener<'a> {
+  fn as_frame_listener(&self) -> &FrameListener<'a> {
     self
   }
 }
@@ -331,7 +335,7 @@ impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
 }
 
 impl<'a, T: From<Frame<'a>>> AsFrameListener<'a> for MultiFrameListener<'a, T> {
-  fn as_frame_listener(&'a self) -> &'a FrameListener<'a> {
+  fn as_frame_listener(&self) -> &FrameListener<'a> {
     &self.listener
   }
 }

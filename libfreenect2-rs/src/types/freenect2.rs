@@ -1,5 +1,6 @@
 use crate::ffi;
 use crate::types::freenect2_device::Freenect2Device;
+use crate::util::logger::init_logger;
 use anyhow::{anyhow, Context, Error};
 use cxx::UniquePtr;
 use std::pin::Pin;
@@ -62,6 +63,7 @@ impl Freenect2 {
   /// The instance will be dropped when the last reference
   /// is dropped.
   pub fn new() -> anyhow::Result<Self> {
+    init_logger();
     let mut static_instance = FREENECT2.lock().unwrap();
 
     if let Some(instance) = static_instance.upgrade() {

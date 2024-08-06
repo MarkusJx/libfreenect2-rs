@@ -50,6 +50,7 @@ fn main() -> anyhow::Result<()> {
       "freenect2_device",
       "config",
       "registration",
+      "logger",
     ],
     &downloaded_file.include_path,
   );

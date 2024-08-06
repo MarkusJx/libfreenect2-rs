@@ -2,5 +2,6 @@
 resolver = "2"
 members = [
     "./libfreenect2-rs",
-    "./examples/pointcloud"
+    "./examples/pointcloud",
+    "examples/simple"
 ]

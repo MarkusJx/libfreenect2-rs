@@ -33,14 +33,9 @@ configure_file(.clang-tidy .clang-tidy COPYONLY)
 
 add_library(ffi STATIC
         src/frame.cpp
-        include/frame.hpp
-        include/libfreenect2.hpp
         src/libfreenect2.cpp
-        include/macros.hpp
         src/config.cpp
-        include/config.hpp
         src/freenect2_device.cpp
-        include/freenect2_device.hpp
         src/registration.cpp
-        include/registration.hpp)
+        src/logger.cpp)
 include_directories(ffi PRIVATE "../target/include" "../target/cxxbridge/libfreenect2-rs/src" "../target/cxxbridge" "include")
