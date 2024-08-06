@@ -72,6 +72,27 @@ pub(crate) mod libfreenect2 {
     Blink = 1,
   }
 
+  /// Packet pipeline
+  pub enum PacketPipeline {
+    /// CPU packet pipeline.
+    /// This is the default pipeline.
+    CPU = 0,
+    #[cfg(feature = "opengl")]
+    /// OpenGL packet pipeline.
+    /// Requires the `opengl` feature.
+    OpenGL = 1,
+    #[cfg(feature = "opencl")]
+    /// OpenCL packet pipeline.
+    /// Requires the `opencl` feature.
+    OpenCL = 2,
+    #[cfg(feature = "opencl")]
+    /// OpenCL packet pipeline with the phase
+    /// unwrapping algorithm described in
+    /// http://www.cvl.isy.liu.se/research/datasets/kinect2-dataset/.
+    /// Requires the `opencl` feature.
+    OpenCLKDE = 3,
+  }
+
   extern "Rust" {
     type CallContext<'a>;
   }
@@ -108,12 +129,28 @@ pub(crate) mod libfreenect2 {
       self: Pin<&mut Freenect2>,
       idx: i32,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
+    unsafe fn open_device_by_id_with_packet_pipeline<'a>(
+      self: Pin<&mut Freenect2>,
+      idx: i32,
+      pipeline: PacketPipeline,
+    ) -> Result<UniquePtr<Freenect2Device<'a>>>;
+
     unsafe fn open_device_by_serial<'a>(
       self: Pin<&mut Freenect2>,
       serial: &str,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
+    unsafe fn open_device_by_serial_with_packet_pipeline<'a>(
+      self: Pin<&mut Freenect2>,
+      serial: &str,
+      pipeline: PacketPipeline,
+    ) -> Result<UniquePtr<Freenect2Device<'a>>>;
+
     unsafe fn open_default_device<'a>(
       self: Pin<&mut Freenect2>,
+    ) -> Result<UniquePtr<Freenect2Device<'a>>>;
+    unsafe fn open_default_device_with_packet_pipeline<'a>(
+      self: Pin<&mut Freenect2>,
+      pipeline: PacketPipeline,
     ) -> Result<UniquePtr<Freenect2Device<'a>>>;
 
     /// Create a new Freenect2 instance.

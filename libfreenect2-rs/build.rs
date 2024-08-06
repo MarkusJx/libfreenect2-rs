@@ -86,5 +86,12 @@ fn build<P: AsRef<Path>>(files: &[&str], include_path: P) {
     println!("cargo:rerun-if-changed=ffi/include/{file}.hpp");
   }
 
+  if cfg!(feature = "opencl") {
+    build.define("LIBFREENECT2_RS_WITH_OPENCL", None);
+  }
+  if cfg!(feature = "opengl") {
+    build.define("LIBFREENECT2_RS_WITH_OPENGL", None);
+  }
+
   build.compile("libfreenect2_ffi");
 }

@@ -54,13 +54,12 @@ impl State for AppState {
     let render_start = Instant::now();
 
     let frames = self.freenect_state.get_frame().unwrap();
-    if self.render_type == RenderType::FullColor {
-      self.i += 1;
-      if self.i % 2 != 0 {
-        drop(frames);
-        self.draw_fps(window);
-        return;
-      }
+    let frame_fetch = render_start.elapsed();
+    self.i += 1;
+    if self.render_type == RenderType::FullColor && self.i % 2 != 0 {
+      drop(frames);
+      self.draw_fps(window);
+      return;
     }
 
     self.last_render_start = render_start;
@@ -133,10 +132,12 @@ impl State for AppState {
     }
 
     let processing = start.elapsed();
-    self.last_fps = Some(format!(
-      "{} FPS, processing: {processing:?}, full render: {elapsed:?}",
-      1_000_000 / elapsed.as_micros()
-    ));
+    if self.i % 15 == 0 {
+      self.last_fps = Some(format!(
+        "{} FPS, processing: {processing:?}, full render: {elapsed:?}, frame fetch: {frame_fetch:?}",
+        1_000_000 / elapsed.as_micros()
+      ));
+    }
 
     drop(frames);
     self.draw_fps(window);

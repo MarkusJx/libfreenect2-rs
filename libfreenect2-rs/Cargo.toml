@@ -22,4 +22,7 @@ tokio = "~1"
 attohttpc = { version = "~0.28", default-features = false, features = ["rustls"] }
 
 [features]
+default = ["opencl", "opengl"]
 image = ["dep:image"]
+opencl = []
+opengl = []

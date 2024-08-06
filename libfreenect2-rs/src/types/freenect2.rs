@@ -32,6 +32,14 @@ impl Freenect2Impl {
 unsafe impl Send for Freenect2Impl {}
 unsafe impl Sync for Freenect2Impl {}
 
+pub use crate::ffi::libfreenect2::PacketPipeline;
+
+impl Default for PacketPipeline {
+  fn default() -> Self {
+    PacketPipeline::CPU
+  }
+}
+
 /// Wrapper around libfreenect2's `Freenect2` class.
 /// Used to manage the connected devices.
 /// The `Freenect2` instance is used to open devices.
@@ -131,6 +139,28 @@ impl Freenect2 {
     }
   }
 
+  /// Open the default device with the specified packet pipeline.
+  /// Returns a new [`Freenect2Device`] instance.
+  ///
+  /// # Arguments
+  /// * `pipeline` - The packet pipeline to use.
+  ///
+  /// # Errors
+  /// Returns an error if no default device is found.
+  pub fn open_default_device_with_packet_pipeline(
+    &mut self,
+    pipeline: PacketPipeline,
+  ) -> anyhow::Result<Freenect2Device> {
+    let mut this = self.get_mut()?;
+    unsafe {
+      this
+        .get_mut()?
+        .open_default_device_with_packet_pipeline(pipeline)
+        .map(Freenect2Device::new)
+        .map_err(Into::into)
+    }
+  }
+
   /// Open the device at the specified index.
   /// Returns a new [`Freenect2Device`] instance.
   ///
@@ -150,6 +180,30 @@ impl Freenect2 {
     }
   }
 
+  /// Open the device at the specified index with the specified packet pipeline.
+  /// Returns a new [`Freenect2Device`] instance.
+  ///
+  /// # Arguments
+  /// * `idx` - The index of the device to open.
+  /// * `pipeline` - The packet pipeline to use.
+  ///
+  /// # Errors
+  /// Returns an error if the device at the specified index is not found.
+  pub fn open_device_by_id_with_packet_pipeline(
+    &mut self,
+    idx: i32,
+    pipeline: PacketPipeline,
+  ) -> anyhow::Result<Freenect2Device> {
+    let mut this = self.get_mut()?;
+    unsafe {
+      this
+        .get_mut()?
+        .open_device_by_id_with_packet_pipeline(idx, pipeline)
+        .map(Freenect2Device::new)
+        .map_err(Into::into)
+    }
+  }
+
   /// Open the device with the specified serial number.
   ///
   /// # Arguments
@@ -163,6 +217,30 @@ impl Freenect2 {
       this
         .get_mut()?
         .open_device_by_serial(serial)
+        .map(Freenect2Device::new)
+        .map_err(Into::into)
+    }
+  }
+
+  /// Open the device with the specified serial number and packet pipeline.
+  /// Returns a new [`Freenect2Device`] instance.
+  ///
+  /// # Arguments
+  /// * `serial` - The serial number of the device to open.
+  /// * `pipeline` - The packet pipeline to use.
+  ///
+  /// # Errors
+  /// Returns an error if the device with the specified serial number is not found.
+  pub fn open_device_by_serial_with_packet_pipeline(
+    &mut self,
+    serial: &str,
+    pipeline: PacketPipeline,
+  ) -> anyhow::Result<Freenect2Device> {
+    let mut this = self.get_mut()?;
+    unsafe {
+      this
+        .get_mut()?
+        .open_device_by_serial_with_packet_pipeline(serial, pipeline)
         .map(Freenect2Device::new)
         .map_err(Into::into)
     }

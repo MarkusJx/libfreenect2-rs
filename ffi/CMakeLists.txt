@@ -31,6 +31,9 @@ if (CMake_RUN_CLANG_TIDY)
 endif ()
 configure_file(.clang-tidy .clang-tidy COPYONLY)
 
+add_compile_definitions(LIBFREENECT2_RS_WITH_OPENCL)
+add_compile_definitions(LIBFREENECT2_RS_WITH_OPENGL)
+
 add_library(ffi STATIC
         src/frame.cpp
         include/frame.hpp
