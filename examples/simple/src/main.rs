@@ -42,18 +42,11 @@ fn main() -> anyhow::Result<()> {
     mode: LedMode::Blink,
     start_level: 0,
     stop_level: 1000,
-    interval_ms: 500,
-  })?;
-  device.set_led_settings(&LedSettings {
-    id: 0,
-    mode: LedMode::Blink,
-    start_level: 1000,
-    stop_level: 0,
-    interval_ms: 500,
+    interval_ms: 1000,
   })?;
 
   log::info!("Sleeping for 5 seconds...");
-  std::thread::sleep(std::time::Duration::from_secs(50));
+  std::thread::sleep(std::time::Duration::from_secs(5));
 
   device.stop()?;
 

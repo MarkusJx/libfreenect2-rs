@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
   log4rs::init_config(
     log4rs::Config::builder()
       .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
-      .build(Root::builder().appender("stdout").build(LevelFilter::Trace))?,
+      .build(Root::builder().appender("stdout").build(LevelFilter::Debug))?,
   )?;
   let args = CommendLineArgs::parse();
   let render_type = args.render_type.unwrap_or(RenderType::Depth);

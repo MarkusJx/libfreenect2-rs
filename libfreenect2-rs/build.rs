@@ -32,6 +32,7 @@ fn main() -> anyhow::Result<()> {
       "framework=CoreGraphics",
       "framework=AppKit",
       "framework=StoreKit",
+      "framework=OpenGL",
     ]
     .to_vec(),
     TargetOS::Linux => ["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"].to_vec(),
