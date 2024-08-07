@@ -18,11 +18,15 @@ pub enum TargetOS {
 struct Config {
   os: TargetOS,
   features: &'static str,
+  config: &'static str,
 }
 
 impl Config {
   fn zip_name(&self) -> String {
-    format!("libfreenect2-{}-{}.zip", self.os, self.features)
+    format!(
+      "libfreenect2-{}-{}-{}.zip",
+      self.os, self.features, self.config
+    )
   }
 }
 
@@ -176,6 +180,29 @@ fn download(url: &str, path: &Path) -> anyhow::Result<()> {
 
 pub struct DownloadedLibrary {
   pub include_path: PathBuf,
+  lib_path: PathBuf,
+  os: TargetOS,
+}
+
+impl DownloadedLibrary {
+  pub fn link_libs(&self) -> anyhow::Result<()> {
+    for file in std::fs::read_dir(&self.lib_path)? {
+      let file = file?;
+      if !file.file_type()?.is_file() {
+        continue;
+      }
+
+      let path = file.path();
+      let lib_name = match get_lib_name(path.as_path(), self.os) {
+        Some(lib_name) => lib_name,
+        None => continue,
+      };
+
+      println!("cargo:rustc-link-lib={}", lib_name);
+    }
+
+    Ok(())
+  }
 }
 
 pub struct ZippedLibrary {
@@ -211,18 +238,27 @@ impl ZippedLibrary {
       println!("cargo:rerun-if-changed={}", path_from_env);
       PathBuf::from(path_from_env)
     } else {
-      let features =
-        if os != TargetOS::Linux && cfg!(feature = "opencl") && cfg!(feature = "opengl") {
-          "all"
-        } else if os != TargetOS::Linux && cfg!(feature = "opencl") {
-          "opencl"
-        } else if os == TargetOS::Linux || cfg!(feature = "opengl") {
-          "opengl"
-        } else {
-          panic!("At least one of 'opencl' or 'opengl' must be enabled")
-        };
+      let features = if cfg!(feature = "opencl") && cfg!(feature = "opengl") {
+        "all"
+      } else if cfg!(feature = "opencl") {
+        "opencl"
+      } else if cfg!(feature = "opengl") {
+        "opengl"
+      } else {
+        panic!("At least one of 'opencl' or 'opengl' must be enabled")
+      };
 
-      let config = Config { os, features };
+      let config = match env::var("PROFILE").unwrap().as_str() {
+        "debug" => "debug",
+        "release" => "release",
+        rest => panic!("Unknown profile: {}", rest),
+      };
+
+      let config = Config {
+        os,
+        features,
+        config,
+      };
 
       let (sha256, url) = get_sha256_for_filename(
         config.zip_name().as_str(),
@@ -259,21 +295,10 @@ impl ZippedLibrary {
       lib_path.to_str().unwrap()
     );
 
-    for file in std::fs::read_dir(lib_path)? {
-      let file = file?;
-      if !file.file_type()?.is_file() {
-        continue;
-      }
-
-      let path = file.path();
-      let lib_name = match get_lib_name(path.as_path(), os) {
-        Some(lib_name) => lib_name,
-        None => continue,
-      };
-
-      println!("cargo:rustc-link-lib={}", lib_name);
-    }
-
-    Ok(DownloadedLibrary { include_path })
+    Ok(DownloadedLibrary {
+      include_path,
+      lib_path,
+      os,
+    })
   }
 }
