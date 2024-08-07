@@ -14,14 +14,15 @@ pub enum TargetOS {
   Linux,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 struct Config {
   os: TargetOS,
+  features: &'static str,
 }
 
 impl Config {
   fn zip_name(&self) -> String {
-    format!("libfreenect2-{}.zip", self.os)
+    format!("libfreenect2-{}-{}.zip", self.os, self.features)
   }
 }
 
@@ -210,7 +211,18 @@ impl ZippedLibrary {
       println!("cargo:rerun-if-changed={}", path_from_env);
       PathBuf::from(path_from_env)
     } else {
-      let config = Config { os };
+      let features =
+        if os != TargetOS::Linux && cfg!(feature = "opencl") && cfg!(feature = "opengl") {
+          "all"
+        } else if os != TargetOS::Linux && cfg!(feature = "opencl") {
+          "opencl"
+        } else if os == TargetOS::Linux || cfg!(feature = "opengl") {
+          "opengl"
+        } else {
+          panic!("At least one of 'opencl' or 'opengl' must be enabled")
+        };
+
+      let config = Config { os, features };
 
       let (sha256, url) = get_sha256_for_filename(
         config.zip_name().as_str(),

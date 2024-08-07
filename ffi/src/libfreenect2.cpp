@@ -11,7 +11,7 @@ Freenect2::~Freenect2() = default;
 
 libfreenect2::PacketPipeline *get_pipeline(PacketPipeline pipeline) {
   switch (pipeline) {
-#ifdef LIBFREENECT2_RS_WITH_OPENCL
+#if defined(LIBFREENECT2_RS_WITH_OPENCL) && !defined(__linux__)
     case PacketPipeline::OpenCL:
       return new libfreenect2::OpenCLPacketPipeline();
     case PacketPipeline::OpenCLKDE:

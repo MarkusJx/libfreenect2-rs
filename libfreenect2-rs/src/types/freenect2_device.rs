@@ -256,6 +256,10 @@ impl<'a> Freenect2Device<'a> {
       !self.closed,
       "Device must not be closed when setting config"
     );
+    anyhow::ensure!(
+      !self.started,
+      "Device must not be started when setting config"
+    );
 
     unsafe {
       self

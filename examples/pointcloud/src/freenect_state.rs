@@ -39,8 +39,6 @@ impl FreenectState<'_> {
 
     device.set_ir_and_depth_frame_listener(frame_listener)?;
     device.set_color_frame_listener(frame_listener)?;
-    device.start_streams(render_type.is_color(), true)?;
-
     let config = CONFIG.get_or_try_init(|| -> anyhow::Result<Config> {
       let mut config = Config::new()?;
       config.set_max_depth(MAX_DEPTH)?;
@@ -48,6 +46,8 @@ impl FreenectState<'_> {
       Ok(config)
     })?;
     device.set_config(config)?;
+
+    device.start_streams(render_type.is_color(), true)?;
 
     Ok(Self {
       registration: device.get_registration()?,
