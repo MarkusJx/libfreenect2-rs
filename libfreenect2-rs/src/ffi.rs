@@ -84,12 +84,14 @@ pub(crate) mod libfreenect2 {
     #[cfg(feature = "opencl")]
     /// OpenCL packet pipeline.
     /// Requires the `opencl` feature.
+    /// Not available on Linux.
     OpenCL = 2,
     #[cfg(feature = "opencl")]
     /// OpenCL packet pipeline with the phase
     /// unwrapping algorithm described in
     /// http://www.cvl.isy.liu.se/research/datasets/kinect2-dataset/.
     /// Requires the `opencl` feature.
+    /// Not available on Linux.
     OpenCLKDE = 3,
   }
 

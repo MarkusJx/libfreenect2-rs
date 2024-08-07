@@ -100,7 +100,7 @@ fn build<P: AsRef<Path>>(files: &[&str], include_path: P) {
     println!("cargo:rerun-if-changed=ffi/include/{file}.hpp");
   }
 
-  if cfg!(feature = "opencl") {
+  if cfg!(feature = "opencl") && TargetOS::new().unwrap() != TargetOS::Linux {
     build.define("LIBFREENECT2_RS_WITH_OPENCL", None);
   }
   if cfg!(feature = "opengl") {
