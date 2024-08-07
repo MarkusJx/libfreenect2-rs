@@ -1,4 +1,6 @@
+#[cfg(debug_assertions)]
 use crate::ffi::libfreenect2::{call_frame_listener, FrameType};
+#[cfg(debug_assertions)]
 use crate::types::frame::Freenect2Frame;
 use crate::types::frame_listener::FrameListener;
 
@@ -8,6 +10,7 @@ fn test_create_frame_listener() {
 }
 
 #[test]
+#[cfg(debug_assertions)]
 fn test_call_frame_listener() {
   let mut listener = FrameListener::new(|ty, frame| {
     assert_eq!(ty, FrameType::Color.into());
@@ -33,6 +36,7 @@ fn test_call_frame_listener() {
 }
 
 #[test]
+#[cfg(debug_assertions)]
 fn test_call_throwing_frame_listener() {
   let mut listener = FrameListener::new(|_, _| panic!("Test")).unwrap();
 
