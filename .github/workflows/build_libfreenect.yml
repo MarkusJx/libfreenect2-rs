@@ -100,10 +100,10 @@ jobs:
           -DGLFW3_LIBRARIES=$(pwd)/$GLFW3_LIB \
           -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL -DCMAKE_BUILD_TYPE=$CONFIG
       - name: Build
-        run: cmake --build build --config "$CONFIG"
+        run: cmake --build build --config ${{env.CONFIG}}
         working-directory: libfreenect2
       - name: Install
-        run: cmake --install build --config "$CONFIG"
+        run: cmake --install build --config ${{env.CONFIG}}
         working-directory: libfreenect2
       - name: Copy dependencies windows
         if: runner.os == 'Windows'
