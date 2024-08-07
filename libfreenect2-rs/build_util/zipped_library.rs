@@ -18,11 +18,15 @@ pub enum TargetOS {
 struct Config {
   os: TargetOS,
   features: &'static str,
+  config: &'static str,
 }
 
 impl Config {
   fn zip_name(&self) -> String {
-    format!("libfreenect2-{}-{}.zip", self.os, self.features)
+    format!(
+      "libfreenect2-{}-{}-{}.zip",
+      self.os, self.features, self.config
+    )
   }
 }
 
@@ -221,7 +225,17 @@ impl ZippedLibrary {
         panic!("At least one of 'opencl' or 'opengl' must be enabled")
       };
 
-      let config = Config { os, features };
+      let config = if cfg!(debug_assertions) {
+        "debug"
+      } else {
+        "release"
+      };
+
+      let config = Config {
+        os,
+        features,
+        config,
+      };
 
       let (sha256, url) = get_sha256_for_filename(
         config.zip_name().as_str(),
