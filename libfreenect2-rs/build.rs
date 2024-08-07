@@ -20,23 +20,37 @@ fn main() -> anyhow::Result<()> {
   }
 
   let os_libs = match TargetOS::new()? {
-    TargetOS::Macos => [
-      "usb-1.0",
-      "glfw3",
-      "framework=CoreFoundation",
-      "framework=OpenCL",
-      "framework=VideoToolbox",
-      "framework=CoreMedia",
-      "framework=CoreVideo",
-      "framework=IOKit",
-      "framework=CoreGraphics",
-      "framework=AppKit",
-      "framework=StoreKit",
-      "framework=OpenGL",
-    ]
-    .to_vec(),
-    TargetOS::Linux => ["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"].to_vec(),
-    TargetOS::Windows => ["opengl32", "user32", "gdi32", "shell32"].to_vec(),
+    TargetOS::Macos => {
+      let mut libs = vec![
+        "usb-1.0",
+        "framework=CoreFoundation",
+        "framework=VideoToolbox",
+        "framework=CoreMedia",
+        "framework=CoreVideo",
+        "framework=IOKit",
+        "framework=CoreGraphics",
+        "framework=AppKit",
+        "framework=StoreKit",
+      ];
+
+      if cfg!(feature = "opencl") {
+        libs.append(&mut vec!["glfw3", "framework=OpenGL"]);
+      }
+      if cfg!(feature = "opencl") {
+        libs.push("framework=OpenCL");
+      }
+
+      libs
+    }
+    TargetOS::Linux => vec!["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"],
+    TargetOS::Windows => {
+      let mut libs = vec!["user32", "gdi32", "shell32"];
+      if cfg!(feature = "opengl") {
+        libs.push("opengl32");
+      }
+
+      libs
+    }
   };
 
   for os_lib_name in os_libs {
