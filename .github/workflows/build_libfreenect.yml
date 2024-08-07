@@ -28,17 +28,17 @@ jobs:
             echo "ENABLE_OPENCL=OFF" >> $GITHUB_ENV
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
-            if [ "${{matrix.config}}" == "debug" ]; then
-              echo "CONFIG=RelWithDebInfo" >> $GITHUB_ENV
-            else
-              echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
-            fi
             echo "ARTIFACT=windows" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "Linux" ]; then
             echo "ARTIFACT=linux" >> $GITHUB_ENV
             echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
           else
             echo "ARTIFACT=macos" >> $GITHUB_ENV
+            echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
+          fi
+          if [ "${{matrix.config}}" == "debug" ]; then
+            echo "CONFIG=RelWithDebInfo" >> $GITHUB_ENV
+          else
             echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
           fi
       - name: Get env
