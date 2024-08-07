@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
         "framework=StoreKit",
       ];
 
-      if cfg!(feature = "opencl") {
+      if cfg!(feature = "opengl") {
         libs.append(&mut vec!["glfw3", "framework=OpenGL"]);
       }
       if cfg!(feature = "opencl") {
@@ -42,7 +42,17 @@ fn main() -> anyhow::Result<()> {
 
       libs
     }
-    TargetOS::Linux => vec!["stdc++", "usb-1.0", "glfw", "GL", "turbojpeg"],
+    TargetOS::Linux => {
+      let mut libs = vec!["stdc++", "usb-1.0", "turbojpeg"];
+      if cfg!(feature = "opengl") {
+        libs.append(&mut vec!["glfw", "GL"]);
+      }
+      if cfg!(feature = "opencl") {
+        libs.push("OpenCL");
+      }
+
+      libs
+    }
     TargetOS::Windows => {
       let mut libs = vec!["user32", "gdi32", "shell32"];
       if cfg!(feature = "opengl") {
@@ -100,7 +110,7 @@ fn build<P: AsRef<Path>>(files: &[&str], include_path: P) {
     println!("cargo:rerun-if-changed=ffi/include/{file}.hpp");
   }
 
-  if cfg!(feature = "opencl") && TargetOS::new().unwrap() != TargetOS::Linux {
+  if cfg!(feature = "opencl") {
     build.define("LIBFREENECT2_RS_WITH_OPENCL", None);
   }
   if cfg!(feature = "opengl") {

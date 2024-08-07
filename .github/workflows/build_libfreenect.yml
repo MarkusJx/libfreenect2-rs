@@ -7,28 +7,8 @@ jobs:
   build:
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: linux
-            features: opengl
-          - os: windows-latest
-            artifact: windows
-            features: opengl
-          - os: macos-13
-            artifact: macos
-            features: opengl
-          - os: windows-latest
-            artifact: windows
-            features: opencl
-          - os: macos-13
-            artifact: macos
-            features: opencl
-          - os: windows-latest
-            artifact: windows
-            features: all
-          - os: macos-13
-            artifact: macos
-            features: all
+        os: [ windows-latest, macos-13, ubuntu-22.04 ]
+        features: [ opengl, opencl, all ]
 
     runs-on: ${{matrix.os}}
     env:
@@ -46,18 +26,26 @@ jobs:
           elif [ "${{matrix.features}}" == "opengl" ]; then
             echo "ENABLE_OPENCL=OFF" >> $GITHUB_ENV
           fi
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "ARTIFACT=windows" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            echo "ARTIFACT=linux" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT=macos" >> $GITHUB_ENV
+          fi
       - name: Get env
         shell: bash
         run: |
           echo "ENABLE_OPENCL=$ENABLE_OPENCL"
           echo "ENABLE_OPENGL=$ENABLE_OPENGL"
+          echo "ARTIFACT=$ARTIFACT"
       - name: Clone libfreenect2
         run: git clone https://github.com/OpenKinect/libfreenect2.git
       - name: Install dependencies linux
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
+          sudo apt-get install -y cmake pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev ocl-icd-opencl-dev
       - name: Install winget
         uses: Cyberboss/install-winget@v1
         if: runner.os == 'Windows'
@@ -128,15 +116,15 @@ jobs:
         run: |
           rm -rf lib/cmake lib/pkgconfig
           if [ "$RUNNER_OS" == "Windows" ]; then
-            7z a libfreenect2-${{matrix.artifact}}-${{matrix.features}}.zip include lib
+            7z a libfreenect2-$ARTIFACT-${{matrix.features}}.zip include lib
           else
-            zip -r libfreenect2-${{matrix.artifact}}-${{matrix.features}}.zip include lib
+            zip -r libfreenect2-$ARTIFACT-${{matrix.features}}.zip include lib
           fi
       - name: Upload library
         uses: actions/upload-artifact@v4
         with:
-          name: libfreenect2-${{matrix.artifact}}-${{matrix.features}}
-          path: libfreenect2/install/libfreenect2-${{matrix.artifact}}-${{matrix.features}}.zip
+          name: libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}
+          path: libfreenect2/install/libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}.zip
 
   release:
     needs: build
