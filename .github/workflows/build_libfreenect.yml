@@ -28,11 +28,18 @@ jobs:
             echo "ENABLE_OPENCL=OFF" >> $GITHUB_ENV
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
+            if [ "${{matrix.config}}" == "debug" ]; then
+              echo "CONFIG=Debug" >> $GITHUB_ENV
+            else
+              echo "CONFIG=RelWithDebInfo" >> $GITHUB_ENV
+            fi
             echo "ARTIFACT=windows" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "Linux" ]; then
             echo "ARTIFACT=linux" >> $GITHUB_ENV
+            echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
           else
             echo "ARTIFACT=macos" >> $GITHUB_ENV
+            echo "CONFIG=${{matrix.config}}" >> $GITHUB_ENV
           fi
       - name: Get env
         shell: bash
@@ -40,6 +47,7 @@ jobs:
           echo "ENABLE_OPENCL=$ENABLE_OPENCL"
           echo "ENABLE_OPENGL=$ENABLE_OPENGL"
           echo "ARTIFACT=$ARTIFACT"
+          echo "CONFIG=$CONFIG"
       - name: Clone libfreenect2
         run: git clone https://github.com/OpenKinect/libfreenect2.git
       - name: Install dependencies linux
@@ -90,12 +98,12 @@ jobs:
           -DLibUSB_LIBRARIES=$(pwd)/$LibUSB_LIB \
           -DOpenCL_LIBRARY=$(pwd)/$OpenCL_LIB \
           -DGLFW3_LIBRARIES=$(pwd)/$GLFW3_LIB \
-          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL -DCMAKE_BUILD_TYPE=${{matrix.config}}
+          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL -DCMAKE_BUILD_TYPE=$CONFIG
       - name: Build
-        run: cmake --build build --config ${{matrix.config}}
+        run: cmake --build build --config $CONFIG
         working-directory: libfreenect2
       - name: Install
-        run: cmake --install build --config ${{matrix.config}}
+        run: cmake --install build --config $CONFIG
         working-directory: libfreenect2
       - name: Copy dependencies windows
         if: runner.os == 'Windows'
