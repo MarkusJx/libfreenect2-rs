@@ -180,6 +180,29 @@ fn download(url: &str, path: &Path) -> anyhow::Result<()> {
 
 pub struct DownloadedLibrary {
   pub include_path: PathBuf,
+  lib_path: PathBuf,
+  os: TargetOS,
+}
+
+impl DownloadedLibrary {
+  pub fn link_libs(&self) -> anyhow::Result<()> {
+    for file in std::fs::read_dir(&self.lib_path)? {
+      let file = file?;
+      if !file.file_type()?.is_file() {
+        continue;
+      }
+
+      let path = file.path();
+      let lib_name = match get_lib_name(path.as_path(), self.os) {
+        Some(lib_name) => lib_name,
+        None => continue,
+      };
+
+      println!("cargo:rustc-link-lib={}", lib_name);
+    }
+
+    Ok(())
+  }
 }
 
 pub struct ZippedLibrary {
@@ -272,21 +295,10 @@ impl ZippedLibrary {
       lib_path.to_str().unwrap()
     );
 
-    for file in std::fs::read_dir(lib_path)? {
-      let file = file?;
-      if !file.file_type()?.is_file() {
-        continue;
-      }
-
-      let path = file.path();
-      let lib_name = match get_lib_name(path.as_path(), os) {
-        Some(lib_name) => lib_name,
-        None => continue,
-      };
-
-      println!("cargo:rustc-link-lib={}", lib_name);
-    }
-
-    Ok(DownloadedLibrary { include_path })
+    Ok(DownloadedLibrary {
+      include_path,
+      lib_path,
+      os,
+    })
   }
 }
