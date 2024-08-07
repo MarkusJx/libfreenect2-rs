@@ -46,7 +46,9 @@ jobs:
           elif [ "${{matrix.features}}" == "opengl" ]; then
             echo "ENABLE_OPENCL=OFF" >> $GITHUB_ENV
           fi
-          
+      - name: Get env
+        shell: bash
+        run: |
           echo "ENABLE_OPENCL=$ENABLE_OPENCL"
           echo "ENABLE_OPENGL=$ENABLE_OPENGL"
       - name: Clone libfreenect2
@@ -117,7 +119,7 @@ jobs:
           fi
           if [ "$ENABLE_OPENGL" == "ON" ]; then
             cp $(pwd)/$GLFW3_LIB install/lib
-          ]
+          fi
           cp C:/libjpeg-turbo64/lib/jpeg-static.lib install/lib
           cp C:/libjpeg-turbo64/lib/turbojpeg-static.lib install/lib
       - name: Create zip

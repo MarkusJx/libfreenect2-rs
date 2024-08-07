@@ -212,11 +212,11 @@ impl ZippedLibrary {
       PathBuf::from(path_from_env)
     } else {
       let features =
-        if os == TargetOS::Linux || cfg!(feature = "opencl") && cfg!(feature = "opengl") {
+        if os != TargetOS::Linux && cfg!(feature = "opencl") && cfg!(feature = "opengl") {
           "all"
-        } else if cfg!(feature = "opencl") {
+        } else if os != TargetOS::Linux && cfg!(feature = "opencl") {
           "opencl"
-        } else if cfg!(feature = "opengl") {
+        } else if os == TargetOS::Linux || cfg!(feature = "opengl") {
           "opengl"
         } else {
           panic!("At least one of 'opencl' or 'opengl' must be enabled")
