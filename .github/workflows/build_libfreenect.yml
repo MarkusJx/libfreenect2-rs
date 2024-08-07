@@ -9,6 +9,7 @@ jobs:
       matrix:
         os: [ windows-latest, macos-13, ubuntu-22.04 ]
         features: [ opengl, opencl, all ]
+        config: [ debug, release ]
 
     runs-on: ${{matrix.os}}
     env:
@@ -68,7 +69,7 @@ jobs:
       - name: Configure unix
         run: |
           cmake . -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -Bbuild -DCMAKE_INSTALL_PREFIX=$(pwd)/install \
-          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL
+          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL -DCMAKE_BUILD_TYPE=${{matrix.config}}
         working-directory: libfreenect2
         if: runner.os != 'Windows'
       - name: Set environment windows
@@ -89,12 +90,12 @@ jobs:
           -DLibUSB_LIBRARIES=$(pwd)/$LibUSB_LIB \
           -DOpenCL_LIBRARY=$(pwd)/$OpenCL_LIB \
           -DGLFW3_LIBRARIES=$(pwd)/$GLFW3_LIB \
-          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL
+          -DENABLE_OPENGL=$ENABLE_OPENGL -DENABLE_OPENCL=$ENABLE_OPENCL -DCMAKE_BUILD_TYPE=${{matrix.config}}
       - name: Build
-        run: cmake --build build --config release
+        run: cmake --build build --config ${{matrix.config}}
         working-directory: libfreenect2
       - name: Install
-        run: cmake --install build --config release
+        run: cmake --install build --config ${{matrix.config}}
         working-directory: libfreenect2
       - name: Copy dependencies windows
         if: runner.os == 'Windows'
@@ -116,15 +117,15 @@ jobs:
         run: |
           rm -rf lib/cmake lib/pkgconfig
           if [ "$RUNNER_OS" == "Windows" ]; then
-            7z a libfreenect2-$ARTIFACT-${{matrix.features}}.zip include lib
+            7z a libfreenect2-$ARTIFACT-${{matrix.features}}-${{matrix.config}}.zip include lib
           else
-            zip -r libfreenect2-$ARTIFACT-${{matrix.features}}.zip include lib
+            zip -r libfreenect2-$ARTIFACT-${{matrix.features}}-${{matrix.config}}.zip include lib
           fi
       - name: Upload library
         uses: actions/upload-artifact@v4
         with:
-          name: libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}
-          path: libfreenect2/install/libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}.zip
+          name: libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}-${{matrix.config}}
+          path: libfreenect2/install/libfreenect2-${{env.ARTIFACT}}-${{matrix.features}}-${{matrix.config}}.zip
 
   release:
     needs: build

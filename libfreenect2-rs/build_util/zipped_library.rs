@@ -211,16 +211,15 @@ impl ZippedLibrary {
       println!("cargo:rerun-if-changed={}", path_from_env);
       PathBuf::from(path_from_env)
     } else {
-      let features =
-        if os != TargetOS::Linux && cfg!(feature = "opencl") && cfg!(feature = "opengl") {
-          "all"
-        } else if os != TargetOS::Linux && cfg!(feature = "opencl") {
-          "opencl"
-        } else if os == TargetOS::Linux || cfg!(feature = "opengl") {
-          "opengl"
-        } else {
-          panic!("At least one of 'opencl' or 'opengl' must be enabled")
-        };
+      let features = if cfg!(feature = "opencl") && cfg!(feature = "opengl") {
+        "all"
+      } else if cfg!(feature = "opencl") {
+        "opencl"
+      } else if cfg!(feature = "opengl") {
+        "opengl"
+      } else {
+        panic!("At least one of 'opencl' or 'opengl' must be enabled")
+      };
 
       let config = Config { os, features };
 
