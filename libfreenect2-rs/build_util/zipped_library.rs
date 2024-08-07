@@ -225,10 +225,10 @@ impl ZippedLibrary {
         panic!("At least one of 'opencl' or 'opengl' must be enabled")
       };
 
-      let config = if cfg!(debug_assertions) {
-        "debug"
-      } else {
-        "release"
+      let config = match env::var("PROFILE").unwrap().as_str() {
+        "debug" => "debug",
+        "release" => "release",
+        rest => panic!("Unknown profile: {}", rest),
       };
 
       let config = Config {
