@@ -2,17 +2,17 @@ use crate::constants::MAX_DEPTH;
 use crate::RenderType;
 use anyhow::anyhow;
 use libfreenect2_rs::config::Config;
-use libfreenect2_rs::frame::{Frame, OwnedFrame};
-use libfreenect2_rs::frame_listener::{
-  FrameMap, MultiFrameListener, OwnedFramesMultiFrameListener,
-};
+use libfreenect2_rs::frame::Frame;
+use libfreenect2_rs::frame_listener::{FrameMap, MultiFrameListener};
 use libfreenect2_rs::frame_type::FrameType;
 use libfreenect2_rs::freenect2::Freenect2;
 use libfreenect2_rs::freenect2_device::Freenect2Device;
 use libfreenect2_rs::registration::Registration;
 use once_cell::sync::OnceCell;
 
-static FRAME_LISTENER: OnceCell<OwnedFramesMultiFrameListener> = OnceCell::new();
+type FrameListenerType = Frame<'static>;
+
+static FRAME_LISTENER: OnceCell<MultiFrameListener<'static, FrameListenerType>> = OnceCell::new();
 static mut FREENECT: Option<Freenect2> = None;
 static CONFIG: OnceCell<Config> = OnceCell::new();
 
@@ -56,7 +56,7 @@ impl FreenectState<'_> {
     })
   }
 
-  pub fn get_frame(&self) -> anyhow::Result<FrameMap<OwnedFrame>> {
+  pub fn get_frame(&self) -> anyhow::Result<FrameMap<FrameListenerType>> {
     let mut frames = FRAME_LISTENER
       .get()
       .ok_or(anyhow!("Frame listener not initialized"))?
@@ -77,8 +77,8 @@ impl FreenectState<'_> {
           true,
         )?;
 
-        frames.set_depth(undistorted.to_owned());
-        frames.set_color(color_depth.to_owned());
+        frames.set_depth(undistorted);
+        frames.set_color(color_depth)
       } else {
         let mut full_color = Frame::depth_full_color();
 
@@ -91,17 +91,15 @@ impl FreenectState<'_> {
           &mut full_color,
         )?;
 
-        frames.set_depth(full_color.to_owned());
+        frames.set_depth(full_color);
       }
     } else {
       let depth = frames.expect_depth()?;
 
       let mut undistorted = Frame::depth();
-      self
-        .registration
-        .undistort_depth(&depth.to_frame(), &mut undistorted)?;
+      self.registration.undistort_depth(depth, &mut undistorted)?;
 
-      frames.set_depth(undistorted.to_owned());
+      frames.set_depth(undistorted);
     }
 
     Ok(frames)

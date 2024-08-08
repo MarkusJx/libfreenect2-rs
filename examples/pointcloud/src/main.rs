@@ -28,6 +28,13 @@ impl RenderType {
       RenderType::Depth => false,
     }
   }
+
+  fn depth_offset(&self) -> usize {
+    match self {
+      RenderType::FullColor => 1,
+      _ => 0,
+    }
+  }
 }
 
 #[derive(Parser)]

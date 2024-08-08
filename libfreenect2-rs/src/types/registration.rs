@@ -98,10 +98,10 @@ impl Registration {
   ///   true
   /// ).unwrap();
   /// ```
-  pub fn map_depth_to_color<'a, 'b, F1: AsFrame<'a>, F2: AsFrame<'b>>(
+  pub fn map_depth_to_color<'a, 'b: 'a, 'c, 'd: 'c, F1: AsFrame<'a, 'b>, F2: AsFrame<'c, 'd>>(
     &self,
     depth: &'a F1,
-    color: &'b F2,
+    color: &'c F2,
     undistorted_depth: &mut Frame,
     color_depth_image: &mut Frame,
     enable_filter: bool,
@@ -151,10 +151,17 @@ impl Registration {
   ///
   /// # Errors
   /// Returns an error if the frames have invalid formats or resolutions.
-  pub fn map_depth_to_full_color<'a, 'b, F1: AsFrame<'a>, F2: AsFrame<'b>>(
+  pub fn map_depth_to_full_color<
+    'a,
+    'b: 'a,
+    'c,
+    'd: 'c,
+    F1: AsFrame<'a, 'b>,
+    F2: AsFrame<'c, 'd>,
+  >(
     &self,
     depth: &'a F1,
-    color: &'b F2,
+    color: &'c F2,
     undistorted_depth: &mut Frame,
     color_depth_image: &mut Frame,
     enable_filter: bool,
@@ -195,7 +202,7 @@ impl Registration {
   ///
   /// # Errors
   /// Returns an error if the frames have invalid formats or resolutions.
-  pub fn undistort_depth<'a, F: AsFrame<'a>>(
+  pub fn undistort_depth<'a, 'b: 'a, F: AsFrame<'a, 'b>>(
     &self,
     depth: &'a F,
     undistorted_depth: &mut Frame,

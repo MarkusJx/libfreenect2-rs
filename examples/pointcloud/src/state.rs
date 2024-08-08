@@ -10,6 +10,7 @@ use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
 use libfreenect2_rs::frame::Freenect2Frame;
+use libfreenect2_rs::frame_data::FrameDataValue;
 use na::{Point2, Point3};
 use std::time::Instant;
 
@@ -55,12 +56,13 @@ impl State for AppState {
 
     let frames = self.freenect_state.get_frame().unwrap();
     let frame_fetch = render_start.elapsed();
+
     self.i += 1;
-    if self.render_type == RenderType::FullColor && self.i % 2 != 0 {
+    /*if self.render_type == RenderType::FullColor && self.i % 2 != 0 {
       drop(frames);
       self.draw_fps(window);
       return;
-    }
+    }*/
 
     self.last_render_start = render_start;
     self.point_cloud_renderer.clear();
@@ -75,31 +77,25 @@ impl State for AppState {
 
       // The first line of the depth frame is empty if the depth frame is
       // in the same frame as the color frame (1920x1080).
-      let depth_offset = if self.render_type == RenderType::FullColor {
-        1
-      } else {
-        0
-      };
+      let depth_offset = self.render_type.depth_offset();
+      let depth_data = depth.data().expect_float();
+      let color_data = color.data().expect_rgbx();
 
       for y in 0..color.height() {
         for x in 0..color.width() {
-          let z = depth.get_pixel(x, y + depth_offset).expect_float();
-          if z <= 0.0 {
+          let Some(z) = depth_data.get_valid_pixel(x, y + depth_offset) else {
             continue;
-          }
+          };
 
           let x_f32 = x as f32 / (color.width() as f32) - 0.5;
           let y_f32 = 0.5 - y as f32 / (color.height() as f32);
 
-          let color_pixel = color.get_pixel(x as _, y as _);
-          let color_pixel = color_pixel.expect_rgbx();
-
           self.point_cloud_renderer.push(
             Point3::new(x_f32 * SCALE, y_f32 * SCALE * y_scale, z * FINAL_Z_SCALE),
             Point3::new(
-              color_pixel.r as f32 / 255.0,
-              color_pixel.g as f32 / 255.0,
-              color_pixel.b as f32 / 255.0,
+              color_data.red_at(x, y) as f32 / 255.0,
+              color_data.green_at(x, y) as f32 / 255.0,
+              color_data.blue_at(x, y) as f32 / 255.0,
             ),
           );
         }
@@ -107,9 +103,8 @@ impl State for AppState {
     } else {
       let width = depth.width() as f32;
       let height = depth.height() as f32;
-      for (y, row) in depth.iter().enumerate() {
-        for (x, value) in row.enumerate() {
-          let z = value.expect_float();
+      for (y, row) in depth.data().expect_float().iter().enumerate() {
+        for (x, z) in row.enumerate() {
           if z <= 0.0 {
             continue;
           }
@@ -134,8 +129,11 @@ impl State for AppState {
     let processing = start.elapsed();
     if self.i % 15 == 0 {
       self.last_fps = Some(format!(
-        "{} FPS, processing: {processing:?}, full render: {elapsed:?}, frame fetch: {frame_fetch:?}",
-        1_000_000 / elapsed.as_micros()
+        "{} FPS, processing: {}ms, full render: {}ms, frame fetch: {}ms",
+        1_000_000 / elapsed.as_micros(),
+        processing.as_millis(),
+        elapsed.as_millis(),
+        frame_fetch.as_millis()
       ));
     }
 

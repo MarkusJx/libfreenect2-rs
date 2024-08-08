@@ -1,48 +1,253 @@
-use crate::types::frame::{FrameFormat, Freenect2Frame};
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use crate::frame::Freenect2Frame;
+use crate::frame_data_iter::FrameDataIter;
+use std::fmt::Display;
 
-/// An iterator over the rows in a frame.
-/// Each row is an iterator over the values in that row.
-/// The values are in the format specified by the frame.
-/// The values are in row-major order.
-/// The actual values can be accessed by iterating over the
-/// returned [`FrameRowIter`] iterator.
-pub struct FrameDataIter<'a> {
-  data: FrameDataInner<'a>,
-  index: usize,
+/// Frame data.
+pub enum FrameData<'a> {
+  /// Raw data.
+  Raw(RawData<'a>),
+  /// Gray data.
+  Gray(GrayData<'a>),
+  /// Float data.
+  Float(FloatData<'a>),
+  /// RGBX data.
+  RGBX(RGBXData<'a>),
+  /// Invalid data.
+  Invalid,
 }
 
-impl<'a> FrameDataIter<'a> {
-  pub(crate) fn new(frame: &'a dyn Freenect2Frame) -> Self {
-    Self {
-      data: FrameDataInner {
-        data: frame.raw_data(),
-        width: frame.width(),
-        height: frame.height(),
-        bytes_per_pixel: frame.bytes_per_pixel(),
-        format: frame.format(),
-      },
-      index: 0,
+impl<'a> FrameData<'a> {
+  /// Expect the value to be raw data.
+  ///
+  /// # Panics
+  /// Panics if the value is not raw data.
+  pub fn expect_raw(self) -> RawData<'a> {
+    match self {
+      FrameData::Raw(value) => value,
+      _ => panic!("Expected raw value, found {}", self),
+    }
+  }
+
+  /// Expect the value to be gray data.
+  ///
+  /// # Panics
+  /// Panics if the value is not gray data.
+  pub fn expect_gray(self) -> GrayData<'a> {
+    match self {
+      FrameData::Gray(value) => value,
+      _ => panic!("Expected gray value, found {}", self),
+    }
+  }
+
+  /// Expect the value to be float data.
+  ///
+  /// # Panics
+  /// Panics if the value is not float data.
+  pub fn expect_float(self) -> FloatData<'a> {
+    match self {
+      FrameData::Float(value) => value,
+      _ => panic!("Expected float value, found {}", self),
+    }
+  }
+
+  /// Expect the value to be RGBX data.
+  ///
+  /// # Panics
+  /// Panics if the value is not RGBX data.
+  pub fn expect_rgbx(self) -> RGBXData<'a> {
+    match self {
+      FrameData::RGBX(value) => value,
+      _ => panic!("Expected RGBX value, found {}", self),
+    }
+  }
+
+  /// Get the raw data, if the value is raw data.
+  /// Returns [`None`] if the value is not raw data.
+  pub fn raw(self) -> Option<RawData<'a>> {
+    match self {
+      FrameData::Raw(value) => Some(value),
+      _ => None,
+    }
+  }
+
+  /// Get the raw data, if the value is gray data.
+  /// Returns [`None`] if the value is not gray data.
+  pub fn gray(self) -> Option<GrayData<'a>> {
+    match self {
+      FrameData::Gray(value) => Some(value),
+      _ => None,
+    }
+  }
+
+  /// Get the raw data, if the value is float data.
+  /// Returns [`None`] if the value is not float data.
+  pub fn float(self) -> Option<FloatData<'a>> {
+    match self {
+      FrameData::Float(value) => Some(value),
+      _ => None,
+    }
+  }
+
+  /// Get the raw data, if the value is RGBX data.
+  /// Returns [`None`] if the value is not RGBX data.
+  pub fn rgbx(self) -> Option<RGBXData<'a>> {
+    match self {
+      FrameData::RGBX(value) => Some(value),
+      _ => None,
+    }
+  }
+
+  /// Check if the value is invalid.
+  pub fn is_invalid(&self) -> bool {
+    matches!(self, FrameData::Invalid)
+  }
+}
+
+impl Display for FrameData<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      FrameData::Raw(_) => write!(f, "Raw"),
+      FrameData::Gray(_) => write!(f, "Gray"),
+      FrameData::Float(_) => write!(f, "Float"),
+      FrameData::RGBX(_) => write!(f, "RGBX"),
+      FrameData::Invalid => write!(f, "Invalid"),
     }
   }
 }
 
-/// An iterator over the values in a row of a frame.
-/// The values are in the format specified by the frame.
-pub struct FrameRowIter<'a> {
-  data: FrameDataInner<'a>,
-  start_index: usize,
-  index: usize,
+/// Raw data.
+pub struct RawData<'a>(&'a dyn Freenect2Frame);
+
+impl<'a> RawData<'a> {
+  pub(crate) fn new(frame: &'a dyn Freenect2Frame) -> Self {
+    Self(frame)
+  }
 }
 
-#[derive(Clone)]
-struct FrameDataInner<'a> {
-  data: &'a [u8],
-  width: usize,
-  height: usize,
-  bytes_per_pixel: usize,
-  format: FrameFormat,
+/// Gray data.
+pub struct GrayData<'a>(&'a dyn Freenect2Frame);
+
+impl<'a> GrayData<'a> {
+  pub(crate) fn new(frame: &'a dyn Freenect2Frame) -> Self {
+    Self(frame)
+  }
+}
+
+/// Float data.
+pub struct FloatData<'a>(&'a dyn Freenect2Frame);
+
+impl<'a> FloatData<'a> {
+  pub(crate) fn new(frame: &'a dyn Freenect2Frame) -> Self {
+    Self(frame)
+  }
+
+  /// Get the valid pixel value at the specified position.
+  /// The position is specified by the `x` and `y` coordinates.
+  /// Returns [`None`] if the pixel is not valid.
+  /// A pixel is considered valid if it is not NaN and greater than 0.
+  /// The pixel value is in meters.
+  ///
+  /// # Arguments
+  /// * `x` - The x coordinate.
+  /// * `y` - The y coordinate.
+  ///
+  /// # Returns
+  /// The valid pixel value at the specified position.
+  /// Returns [`None`] if the pixel is not valid.
+  pub fn get_valid_pixel(&self, x: usize, y: usize) -> Option<f32> {
+    let index = self._get_index(x, y);
+    let res = f32::from_ne_bytes(self.0.raw_data()[index..index + 4].try_into().unwrap());
+
+    if res.is_nan() || res <= 0f32 {
+      None
+    } else {
+      Some(res)
+    }
+  }
+}
+
+/// RGBX data.
+pub struct RGBXData<'a> {
+  frame: &'a dyn Freenect2Frame,
+  rgb_type: RGBType,
+}
+
+enum RGBType {
+  Rgb,
+  Bgr,
+}
+
+impl<'a> RGBXData<'a> {
+  pub(crate) fn rgbx(frame: &'a dyn Freenect2Frame) -> Self {
+    Self {
+      frame,
+      rgb_type: RGBType::Rgb,
+    }
+  }
+
+  pub(crate) fn bgrx(frame: &'a dyn Freenect2Frame) -> Self {
+    Self {
+      frame,
+      rgb_type: RGBType::Bgr,
+    }
+  }
+
+  /// Get the red value at the specified position.
+  /// The position is specified by the `x` and `y` coordinates.
+  ///
+  /// # Arguments
+  /// * `x` - The x coordinate.
+  /// * `y` - The y coordinate.
+  ///
+  /// # Returns
+  /// The red value at the specified position.
+  ///
+  /// # Panics
+  /// Panics if the position is out of bounds.
+  pub fn red_at(&self, x: usize, y: usize) -> u8 {
+    let index = self._get_index(x, y);
+    match self.rgb_type {
+      RGBType::Rgb => self.frame.raw_data()[index],
+      RGBType::Bgr => self.frame.raw_data()[index + 2],
+    }
+  }
+
+  /// Get the green value at the specified position.
+  /// The position is specified by the `x` and `y` coordinates.
+  ///
+  /// # Arguments
+  /// * `x` - The x coordinate.
+  /// * `y` - The y coordinate.
+  ///
+  /// # Returns
+  /// The green value at the specified position.
+  ///
+  /// # Panics
+  /// Panics if the position is out of bounds.
+  pub fn green_at(&self, x: usize, y: usize) -> u8 {
+    let index = self._get_index(x, y);
+    self.frame.raw_data()[index + 1]
+  }
+
+  /// Get the blue value at the specified position.
+  /// The position is specified by the `x` and `y` coordinates.
+  ///
+  /// # Arguments
+  /// * `x` - The x coordinate.
+  /// * `y` - The y coordinate.
+  ///
+  /// # Returns
+  /// The blue value at the specified position.
+  ///
+  /// # Panics
+  /// Panics if the position is out of bounds.
+  pub fn blue_at(&self, x: usize, y: usize) -> u8 {
+    let index = self._get_index(x, y);
+    match self.rgb_type {
+      RGBType::Rgb => self.frame.raw_data()[index + 2],
+      RGBType::Bgr => self.frame.raw_data()[index],
+    }
+  }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -67,160 +272,123 @@ impl RGBX {
   }
 }
 
-impl<'a> Iterator for FrameDataIter<'a> {
-  type Item = FrameRowIter<'a>;
+/// A trait for frame data values.
+pub trait FrameDataValue<'a> {
+  /// The type of the value.
+  type Value;
 
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.index >= self.data.height {
-      return None;
-    }
+  /// Get the pixel value at the specified position.
+  /// The position is specified by the `x` and `y` coordinates.
+  ///
+  /// # Arguments
+  /// * `x` - The x coordinate.
+  /// * `y` - The y coordinate.
+  ///
+  /// # Returns
+  /// The pixel value at the specified position.
+  ///
+  /// # Panics
+  /// Panics if the position is out of bounds.
+  fn get_pixel(&self, x: usize, y: usize) -> Self::Value;
 
-    let index = self.index * self.data.width * self.data.bytes_per_pixel;
-    self.index += 1;
+  /// Returns an iterator over the frame data.
+  /// The iterator yields rows of frame data.
+  /// Each row is an iterator over the individual pixels.
+  /// The pixel data is represented as [`FrameValue`].
+  /// The values are in the format specified by the frame.
+  ///
+  /// # Example
+  /// ```
+  /// use libfreenect2_rs::frame::{Frame, Freenect2Frame};
+  /// use libfreenect2_rs::frame_data::FrameDataValue;
+  /// use libfreenect2_rs::frame_value::FrameValue;
+  ///
+  /// let frame = Frame::depth();
+  /// for row in frame.data().expect_float().iter() {
+  ///   for value in row {
+  ///     println!("Depth value: {}", value);
+  ///   }
+  /// }
+  /// ```
+  fn iter(&'a self) -> FrameDataIter<'a, Self>
+  where
+    Self: Sized,
+  {
+    FrameDataIter::new(self._frame(), self)
+  }
 
-    Some(FrameRowIter {
-      data: self.data.clone(),
-      start_index: index,
-      index: 0,
-    })
+  #[doc(hidden)]
+  /// Get the frame that the data belongs to.
+  /// Meant for internal use.
+  fn _frame(&self) -> &'a dyn Freenect2Frame;
+
+  #[doc(hidden)]
+  /// Get the index of the pixel at the specified position.
+  /// Meant for internal use.
+  fn _get_index(&self, x: usize, y: usize) -> usize {
+    (y * self._frame().width() + x) * self._frame().bytes_per_pixel()
   }
 }
 
-impl<'a> Iterator for FrameRowIter<'a> {
-  type Item = FrameValue;
+impl<'a> FrameDataValue<'a> for RawData<'a> {
+  type Value = u8;
 
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.index >= self.data.width {
-      return None;
-    }
+  fn get_pixel(&self, x: usize, y: usize) -> Self::Value {
+    self.0.raw_data()[self._get_index(x, y)]
+  }
 
-    let index = self.index * self.data.bytes_per_pixel + self.start_index;
-    self.index += 1;
-
-    Some(match self.data.format {
-      FrameFormat::Float => FrameValue::Float(f32::from_ne_bytes(
-        self.data.data[index..index + 4].try_into().unwrap(),
-      )),
-      FrameFormat::Gray => FrameValue::Gray(self.data.data[index]),
-      FrameFormat::Raw => {
-        FrameValue::Raw(self.data.data[index..index + self.data.bytes_per_pixel].to_vec())
-      }
-      FrameFormat::Invalid => FrameValue::Invalid(self.data.data[index]),
-      FrameFormat::RGBX => FrameValue::RGBX(RGBX {
-        r: self.data.data[index],
-        g: self.data.data[index + 1],
-        b: self.data.data[index + 2],
-        x: self.data.data[index + 3],
-      }),
-      FrameFormat::BGRX => FrameValue::RGBX(RGBX {
-        r: self.data.data[index + 2],
-        g: self.data.data[index + 1],
-        b: self.data.data[index],
-        x: self.data.data[index + 3],
-      }),
-    })
+  fn _frame(&self) -> &'a dyn Freenect2Frame {
+    self.0
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-/// A value in a frame.
-pub enum FrameValue {
-  /// Raw data. Contains `bytes_per_pixel` bytes.
-  Raw(Vec<u8>),
-  /// Invalid data.
-  Invalid(u8),
-  /// A 4-byte float.
-  /// If the data is depth data, this is the depth in millimeters.
-  /// If the data is <= 0, it is invalid.
-  Float(f32),
-  /// 4 bytes of R, G, B, and unused per pixel.
-  RGBX(RGBX),
-  /// 1 byte of gray per pixel.
-  Gray(u8),
-}
+impl<'a> FrameDataValue<'a> for GrayData<'a> {
+  type Value = u8;
 
-impl FrameValue {
-  /// Expect the value to be raw data.
-  /// Panics if the value is not raw data.
-  pub fn expect_raw(&self) -> &Vec<u8> {
-    match self {
-      FrameValue::Raw(value) => value,
-      _ => panic!("Expected raw value, found {}", self),
-    }
+  fn get_pixel(&self, x: usize, y: usize) -> Self::Value {
+    self.0.raw_data()[self._get_index(x, y)]
   }
 
-  /// Expect the value to be a float.
-  /// Panics if the value is not a float.
-  pub fn expect_float(&self) -> f32 {
-    match self {
-      FrameValue::Float(value) => *value,
-      _ => panic!("Expected float value, found {}", self),
-    }
-  }
-
-  /// Expect the value to be a RGBX value.
-  /// Panics if the value is not a RGBX value.
-  pub fn expect_rgbx(&self) -> &RGBX {
-    match self {
-      FrameValue::RGBX(value) => value,
-      _ => panic!("Expected RGBX value, found {}", self),
-    }
-  }
-
-  /// Expect the value to be a gray value.
-  /// Panics if the valid is not a gray value.
-  pub fn expect_gray(&self) -> u8 {
-    match self {
-      FrameValue::Gray(value) => *value,
-      _ => panic!("Expected gray value, found {}", self),
-    }
-  }
-
-  /// Get the raw data, if the value is raw data.
-  /// Returns [`None`] if the value is not raw data.
-  pub fn raw(&self) -> Option<&Vec<u8>> {
-    match self {
-      FrameValue::Raw(value) => Some(value),
-      _ => None,
-    }
-  }
-
-  /// Get the raw data, if the value is a float.
-  /// Returns [`None`] if the value is not a float.
-  pub fn float(&self) -> Option<f32> {
-    match self {
-      FrameValue::Float(value) => Some(*value),
-      _ => None,
-    }
-  }
-
-  /// Get the raw data, if the value is a RGBX value.
-  /// Returns [`None`] if the value is not a RGBX value.
-  pub fn rgbx(&self) -> Option<&RGBX> {
-    match self {
-      FrameValue::RGBX(value) => Some(value),
-      _ => None,
-    }
-  }
-
-  /// Get the raw data, if the value is a gray value.
-  /// Returns [`None`] if the value is not a gray value.
-  pub fn gray(&self) -> Option<u8> {
-    match self {
-      FrameValue::Gray(value) => Some(*value),
-      _ => None,
-    }
+  fn _frame(&self) -> &'a dyn Freenect2Frame {
+    self.0
   }
 }
 
-impl Display for FrameValue {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    match self {
-      FrameValue::Raw(_) => write!(f, "raw"),
-      FrameValue::Invalid(_) => write!(f, "invalid"),
-      FrameValue::Float(_) => write!(f, "float"),
-      FrameValue::RGBX(_) => write!(f, "RGBX"),
-      FrameValue::Gray(_) => write!(f, "gray"),
+impl<'a> FrameDataValue<'a> for FloatData<'a> {
+  type Value = f32;
+
+  fn get_pixel(&self, x: usize, y: usize) -> Self::Value {
+    let index = self._get_index(x, y);
+    f32::from_ne_bytes(self.0.raw_data()[index..index + 4].try_into().unwrap())
+  }
+
+  fn _frame(&self) -> &'a dyn Freenect2Frame {
+    self.0
+  }
+}
+
+impl<'a> FrameDataValue<'a> for RGBXData<'a> {
+  type Value = RGBX;
+
+  fn get_pixel(&self, x: usize, y: usize) -> Self::Value {
+    let index = self._get_index(x, y);
+    match self.rgb_type {
+      RGBType::Rgb => RGBX {
+        r: self.frame.raw_data()[index],
+        g: self.frame.raw_data()[index + 1],
+        b: self.frame.raw_data()[index + 2],
+        x: self.frame.raw_data()[index + 3],
+      },
+      RGBType::Bgr => RGBX {
+        b: self.frame.raw_data()[index],
+        g: self.frame.raw_data()[index + 1],
+        r: self.frame.raw_data()[index + 2],
+        x: self.frame.raw_data()[index + 3],
+      },
     }
+  }
+
+  fn _frame(&self) -> &'a dyn Freenect2Frame {
+    self.frame
   }
 }
