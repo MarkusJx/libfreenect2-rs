@@ -26,6 +26,24 @@ impl<'a, 'b: 'a> Deref for FrameReference<'a, 'b> {
   }
 }
 
+impl<'a, 'b: 'a> AsRef<Frame<'b>> for FrameReference<'a, 'b> {
+  fn as_ref(&self) -> &Frame<'b> {
+    self.deref()
+  }
+}
+
+impl<'a, 'b: 'a> From<Frame<'b>> for FrameReference<'a, 'b> {
+  fn from(frame: Frame<'b>) -> Self {
+    FrameReference::Owned(frame)
+  }
+}
+
+impl<'a, 'b: 'a> From<&'a Frame<'b>> for FrameReference<'a, 'b> {
+  fn from(frame: &'a Frame<'b>) -> Self {
+    FrameReference::Borrowed(frame)
+  }
+}
+
 /// A trait for types that can be converted to
 /// a reference to a [`Frame`] or are a [`Frame`].
 /// Currently implemented by [`Frame`] and [`OwnedFrame`].
@@ -93,7 +111,7 @@ impl From<FrameFormat> for ffi::libfreenect2::FrameFormat {
 
 /// A trait for frame types.
 /// This trait is implemented for both [`Frame`] and [`OwnedFrame`].
-pub trait Freenect2Frame {
+pub trait Freenect2Frame: Send + Sync {
   /// Returns the width of the frame in pixels.
   fn width(&self) -> usize;
 

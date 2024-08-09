@@ -43,8 +43,8 @@ namespace libfreenect2_ffi {
   LIBFREENECT2_RS_FUNC std::unique_ptr<libfreenect2::FrameListener>
   create_frame_listener(
       rust::cxxbridge1::Box<CallContext> ctx,
-      rust::Fn<void(FrameType, std::unique_ptr<Frame>,
-                    const rust::cxxbridge1::Box<CallContext>&)>
+      rust::Fn<rust::String(FrameType, std::unique_ptr<Frame>,
+                            const rust::cxxbridge1::Box<CallContext>&)>
           on_new_frame);
 
 #ifndef NDEBUG

@@ -1,5 +1,6 @@
 mod constants;
 mod freenect_state;
+mod multi_thread_image_processor;
 mod renderer;
 mod state;
 
@@ -14,7 +15,7 @@ use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
 
-#[derive(ValueEnum, Clone, Eq, PartialEq)]
+#[derive(ValueEnum, Copy, Clone, Eq, PartialEq)]
 enum RenderType {
   Depth,
   Color,
@@ -53,7 +54,7 @@ fn main() -> anyhow::Result<()> {
   let args = CommendLineArgs::parse();
   let render_type = args.render_type.unwrap_or(RenderType::Depth);
 
-  let freenect_state = FreenectState::new(render_type.clone())?;
+  let freenect_state = FreenectState::new(render_type)?;
   let window = Window::new("Kinect point cloud");
   let app = AppState::new(freenect_state, render_type)?;
 
