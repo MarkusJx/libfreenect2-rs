@@ -87,8 +87,8 @@ impl<'a> FrameListener<'a> {
         Ok(_) => "".to_string(),
       }
     })
-      .map(Self)
-      .map_err(Into::into)
+    .map(Self)
+    .map_err(Into::into)
   }
 }
 
