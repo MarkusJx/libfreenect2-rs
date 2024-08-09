@@ -24,8 +24,10 @@ fn main() -> anyhow::Result<()> {
   let mut config = Config::new()?;
   let frame_counts = Arc::new(Mutex::new(HashMap::new()));
   let listener = FrameListener::new(|ty, _frame| {
-    let mut lock = frame_counts.lock().unwrap();
+    let mut lock = frame_counts.lock().map_err(|e| anyhow::anyhow!("{}", e))?;
     lock.entry(ty).and_modify(|e| *e += 1).or_insert(1);
+
+    Ok(())
   })?;
 
   let mut device = freenect2.open_default_device()?;

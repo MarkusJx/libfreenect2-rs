@@ -4,8 +4,13 @@
 use std::panic::UnwindSafe;
 
 pub(crate) struct CallContext<'a> {
-  pub(crate) func:
-    Box<dyn Fn(crate::types::frame_type::FrameType, crate::types::frame::Frame<'a>) + 'a>,
+  pub(crate) func: Box<
+    dyn Fn(
+        crate::types::frame_type::FrameType,
+        crate::types::frame::Frame<'static>,
+      ) -> anyhow::Result<()>
+      + 'a,
+  >,
 }
 
 #[cxx::bridge]
@@ -116,7 +121,7 @@ pub(crate) mod libfreenect2 {
 
     fn create_frame_listener<'a>(
       ctx: Box<CallContext<'a>>,
-      on_new_frame: fn(FrameType, UniquePtr<Frame<'a>>, &Box<CallContext<'a>>),
+      on_new_frame: fn(FrameType, UniquePtr<Frame<'static>>, &Box<CallContext<'a>>) -> String,
     ) -> Result<UniquePtr<FrameListener<'a>>>;
 
     pub type Freenect2;

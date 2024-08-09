@@ -13,6 +13,7 @@ once_cell = "1.19"
 clap = { version = "4.5.13", features = ["derive"] }
 log = "0.4"
 log4rs = "1.3.0"
+rayon = "1.10"
 
 # Disable OpenGL on macOS since it clashes with kiss3d
 [target.'cfg(target_os = "macos")'.dependencies.libfreenect2-rs]

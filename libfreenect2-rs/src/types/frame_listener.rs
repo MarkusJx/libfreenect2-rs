@@ -5,7 +5,6 @@ use crate::types::frame::Frame;
 use crate::types::frame_type::FrameType;
 use anyhow::anyhow;
 use cxx::UniquePtr;
-use std::marker::PhantomData;
 use std::panic::{catch_unwind, UnwindSafe};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
@@ -39,15 +38,20 @@ impl<'a> FrameListener<'a> {
   ///
   /// let listener = FrameListener::new(|ty, frame| {
   ///   println!("Received frame of type {:?}", ty);
+  ///   Ok(())
   /// }).unwrap();
   /// ```
-  pub fn new<F: Fn(FrameType, Frame<'a>) + UnwindSafe + Clone + 'a>(f: F) -> anyhow::Result<Self> {
+  pub fn new<F: Fn(FrameType, Frame<'static>) -> anyhow::Result<()> + UnwindSafe + Clone + 'a>(
+    f: F,
+  ) -> anyhow::Result<Self> {
     let ctx = Box::new(CallContext {
       func: Box::new(move |ty, frame| {
         let func = f.clone();
-        if let Err(e) = catch_unwind(move || func(ty, frame)) {
-          log::error!("Panic in frame listener: {:?}", e);
-        }
+
+        catch_unwind(move || func(ty, frame)).unwrap_or_else(|e| {
+          log::error!("Frame listener closure panicked: {:?}", e);
+          Err(anyhow!("{:?}", e))
+        })
       }),
     });
 
@@ -65,7 +69,9 @@ impl<'a> FrameListener<'a> {
   /// # Safety
   /// This method is unsafe because it may cause the program to abort if the closure panics.
   /// The closure must not panic. Otherwise, undefined behavior may occur.
-  pub unsafe fn new_no_panic<F: Fn(FrameType, Frame) + 'a>(f: F) -> anyhow::Result<Self> {
+  pub unsafe fn new_no_panic<F: Fn(FrameType, Frame) -> anyhow::Result<()> + 'a>(
+    f: F,
+  ) -> anyhow::Result<Self> {
     let ctx = Box::new(CallContext { func: Box::new(f) });
 
     Self::create_self(ctx)
@@ -76,7 +82,10 @@ impl<'a> FrameListener<'a> {
       let ctx = ctx.as_ref();
       let func = ctx.func.as_ref();
 
-      func(frame_type.into(), Frame::new(frame))
+      match func(frame_type.into(), Frame::new(frame)) {
+        Err(e) => format!("{:?}", e),
+        Ok(_) => "".to_string(),
+      }
     })
     .map(Self)
     .map_err(Into::into)
@@ -94,25 +103,23 @@ unsafe impl<'a> Sync for FrameListener<'a> {}
 
 /// A map of frames received by a [`MultiFrameListener`].+
 /// The frame types stored are the types that the listener was created with.
-pub struct FrameMap<'a, T: From<Frame<'a>>> {
+pub struct FrameMap<T: From<Frame<'static>>> {
   color: Option<T>,
   ir: Option<T>,
   depth: Option<T>,
-  _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T: From<Frame<'a>>> Default for FrameMap<'a, T> {
+impl<T: From<Frame<'static>>> Default for FrameMap<T> {
   fn default() -> Self {
     Self {
       color: None,
       ir: None,
       depth: None,
-      _phantom: PhantomData,
     }
   }
 }
 
-impl<'a, T: From<Frame<'a>>> FrameMap<'a, T> {
+impl<T: From<Frame<'static>>> FrameMap<T> {
   /// Insert a frame into the map.
   pub fn insert(&mut self, ty: FrameType, frame: T) {
     match ty {
@@ -123,18 +130,18 @@ impl<'a, T: From<Frame<'a>>> FrameMap<'a, T> {
   }
 
   /// Set the color frame.
-  pub fn set_color(&mut self, frame: T) {
-    self.color = Some(frame);
+  pub fn set_color<U: Into<T>>(&mut self, frame: U) {
+    self.color = Some(frame.into());
   }
 
   /// Set the ir frame.
-  pub fn set_ir(&mut self, frame: T) {
-    self.ir = Some(frame);
+  pub fn set_ir<U: Into<T>>(&mut self, frame: U) {
+    self.ir = Some(frame.into());
   }
 
   /// Set the depth frame.
-  pub fn set_depth(&mut self, frame: T) {
-    self.depth = Some(frame);
+  pub fn set_depth<U: Into<T>>(&mut self, frame: U) {
+    self.depth = Some(frame.into());
   }
 
   /// Check if the map contains all the frame types.
@@ -244,19 +251,19 @@ impl FrameTypes {
 }
 
 /// A [`MultiFrameListener`] that returns [`OwnedFrame`]s.
-pub type OwnedFramesMultiFrameListener = MultiFrameListener<'static, OwnedFrame>;
+pub type OwnedFramesMultiFrameListener<'a> = MultiFrameListener<'a, OwnedFrame>;
 /// A [`MultiFrameListener`] that returns [`Frame`]s.
-pub type NativeFramesMultiFrameListener<'a> = MultiFrameListener<'a, Frame<'a>>;
+pub type NativeFramesMultiFrameListener<'a> = MultiFrameListener<'a, Frame<'static>>;
 
 /// A listener for multiple frame types.
 /// This listener will wait for all frame types to be received before returning the frames.
 /// If you need to listen for the frames individually, use [`FrameListener`] instead.
-pub struct MultiFrameListener<'a, T: From<Frame<'a>>> {
+pub struct MultiFrameListener<'a, T: From<Frame<'static>> + Send + Sync> {
   listener: FrameListener<'a>,
-  rx: Mutex<Receiver<FrameMap<'a, T>>>,
+  rx: Mutex<Receiver<FrameMap<T>>>,
 }
 
-impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
+impl<'a, T: From<Frame<'static>> + Send + Sync + 'static> MultiFrameListener<'a, T> {
   /// Create a new [`MultiFrameListener`] that listens for the specified frame types.
   /// The listener will wait for all frame types to be received before returning the frames.
   ///
@@ -290,13 +297,17 @@ impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
 
     Ok(Self {
       listener: FrameListener::new(move |ty, frame| {
-        let mut frames = frames.lock().unwrap();
+        let mut frames = frames
+          .lock()
+          .map_err(|e| anyhow::anyhow!("Failed to lock frame map: {e}"))?;
         frames.insert(ty, T::from(frame));
 
         if frames.contains_values(&types) {
           let old_frames = std::mem::take(&mut *frames);
-          tx.send(old_frames).unwrap();
+          tx.send(old_frames)?;
         }
+
+        Ok(())
       })?,
       rx: Mutex::new(rx),
     })
@@ -305,7 +316,7 @@ impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
   /// Get the next set of frames.
   /// This will block until all frame types have been received.
   /// If you need to wait with a timeout, use [`Self::get_frames_with_timeout`] instead.
-  pub fn get_frames(&self) -> anyhow::Result<FrameMap<'a, T>> {
+  pub fn get_frames(&self) -> anyhow::Result<FrameMap<T>> {
     let rx = self
       .rx
       .lock()
@@ -325,7 +336,7 @@ impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
   pub fn get_frames_with_timeout(
     &self,
     timeout: std::time::Duration,
-  ) -> anyhow::Result<FrameMap<'a, T>> {
+  ) -> anyhow::Result<FrameMap<T>> {
     let rx = self
       .rx
       .lock()
@@ -334,7 +345,7 @@ impl<'a, T: From<Frame<'a>> + 'a> MultiFrameListener<'a, T> {
   }
 }
 
-impl<'a, T: From<Frame<'a>>> AsFrameListener<'a> for MultiFrameListener<'a, T> {
+impl<'a, T: From<Frame<'static>> + Send + Sync> AsFrameListener<'a> for MultiFrameListener<'a, T> {
   fn as_frame_listener(&self) -> &FrameListener<'a> {
     &self.listener
   }
