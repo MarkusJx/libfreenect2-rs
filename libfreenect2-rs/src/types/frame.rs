@@ -2,19 +2,21 @@ use std::ops::Deref;
 use std::time::Duration;
 
 use crate::ffi;
-use crate::frame_data::{FrameValue, RGBX};
-use crate::types::frame_data::FrameDataIter;
+#[cfg(feature = "image")]
+use crate::frame_data::FrameDataValue;
+use crate::frame_data::{FloatData, FrameData, GrayData, RGBXData, RawData, RGBX};
+use crate::frame_value::FrameValue;
 
 /// A [`Frame`] or a reference to a [`Frame`].
-pub enum FrameReference<'a> {
+pub enum FrameReference<'a, 'b: 'a> {
   /// An owned [`Frame`].
-  Owned(Frame<'a>),
+  Owned(Frame<'b>),
   /// A borrowed [`Frame`].
-  Borrowed(&'a Frame<'a>),
+  Borrowed(&'a Frame<'b>),
 }
 
-impl<'a> Deref for FrameReference<'a> {
-  type Target = Frame<'a>;
+impl<'a, 'b: 'a> Deref for FrameReference<'a, 'b> {
+  type Target = Frame<'b>;
 
   fn deref(&self) -> &Self::Target {
     match self {
@@ -24,12 +26,30 @@ impl<'a> Deref for FrameReference<'a> {
   }
 }
 
+impl<'a, 'b: 'a> AsRef<Frame<'b>> for FrameReference<'a, 'b> {
+  fn as_ref(&self) -> &Frame<'b> {
+    self.deref()
+  }
+}
+
+impl<'a, 'b: 'a> From<Frame<'b>> for FrameReference<'a, 'b> {
+  fn from(frame: Frame<'b>) -> Self {
+    FrameReference::Owned(frame)
+  }
+}
+
+impl<'a, 'b: 'a> From<&'a Frame<'b>> for FrameReference<'a, 'b> {
+  fn from(frame: &'a Frame<'b>) -> Self {
+    FrameReference::Borrowed(frame)
+  }
+}
+
 /// A trait for types that can be converted to
 /// a reference to a [`Frame`] or are a [`Frame`].
 /// Currently implemented by [`Frame`] and [`OwnedFrame`].
-pub trait AsFrame<'a> {
+pub trait AsFrame<'a, 'b: 'a> {
   /// Returns a reference to a [`Frame`].
-  fn as_frame(&'a self) -> FrameReference<'a>;
+  fn as_frame(&'a self) -> FrameReference<'a, 'b>;
 }
 
 /// Frame format
@@ -91,7 +111,7 @@ impl From<FrameFormat> for ffi::libfreenect2::FrameFormat {
 
 /// A trait for frame types.
 /// This trait is implemented for both [`Frame`] and [`OwnedFrame`].
-pub trait Freenect2Frame {
+pub trait Freenect2Frame: Send + Sync {
   /// Returns the width of the frame in pixels.
   fn width(&self) -> usize;
 
@@ -142,36 +162,6 @@ pub trait Freenect2Frame {
 
   fn format(&self) -> FrameFormat;
 
-  /// Returns an iterator over the frame data.
-  /// The iterator yields rows of frame data.
-  /// Each row is an iterator over the individual pixels.
-  /// The pixel data is represented as [`FrameValue`].
-  /// The values are in the format specified by the frame.
-  ///
-  /// # Example
-  /// ```
-  /// use libfreenect2_rs::frame::{Frame, Freenect2Frame};
-  /// use libfreenect2_rs::frame_data::FrameValue;
-  ///
-  /// let frame = Frame::depth();
-  /// for row in frame.iter() {
-  ///   for value in row {
-  ///     match value {
-  ///       FrameValue::Float(value) => {
-  ///         println!("Depth value: {}", value);
-  ///       },
-  ///       _ => unreachable!(),
-  ///     }
-  ///   }
-  /// }
-  /// ```
-  fn iter(&self) -> FrameDataIter
-  where
-    Self: Sized,
-  {
-    FrameDataIter::new(self)
-  }
-
   #[cfg(feature = "image")]
   /// Converts the frame to an [`image`] type.
   /// The image type is determined by the frame format.
@@ -202,14 +192,12 @@ pub trait Freenect2Frame {
   {
     match self.format() {
       FrameFormat::BGRX | FrameFormat::RGBX => {
-        let Some(data) = self
+        let data = self
+          .data()
+          .expect_rgbx()
           .iter()
-          .flat_map(|row| row.map(|value| value.rgbx().map(|r| r.raw()[..3].to_vec())))
-          .collect::<Option<Vec<_>>>()
-          .map(|data| data.into_iter().flatten().collect::<Vec<_>>())
-        else {
-          return FrameImage::Invalid;
-        };
+          .flat_map(|row| row.flat_map(|value| value.raw()[..3].to_vec()))
+          .collect::<Vec<_>>();
 
         image::RgbImage::from_raw(self.width() as _, self.height() as _, data)
           .map_or(FrameImage::Invalid, FrameImage::RGB)
@@ -221,13 +209,12 @@ pub trait Freenect2Frame {
       )
       .map_or(FrameImage::Invalid, FrameImage::Gray),
       FrameFormat::Float => {
-        let Some(data) = self
+        let data = self
+          .data()
+          .expect_float()
           .iter()
-          .flat_map(|row| row.map(|value| value.float()))
-          .collect::<Option<Vec<_>>>()
-        else {
-          return FrameImage::Invalid;
-        };
+          .flatten()
+          .collect::<Vec<_>>();
 
         image::ImageBuffer::from_raw(self.width() as _, self.height() as _, data)
           .map_or(FrameImage::Invalid, FrameImage::Float)
@@ -241,6 +228,20 @@ pub trait Freenect2Frame {
   /// The pixel data is represented as [`FrameValue`].
   /// The values are in the format specified by the frame.
   ///
+  /// For improved performance, consider using [`Self::data`] and
+  /// [`FrameDataValue::get_pixel`] instead:
+  /// ```
+  /// use libfreenect2_rs::frame::{Frame, Freenect2Frame};
+  /// use libfreenect2_rs::frame_data::FrameDataValue;
+  ///
+  /// // Get the frame
+  /// let frame = Frame::depth();
+  ///
+  /// // Get the frame data
+  /// let data = frame.data().expect_float();
+  /// let pixel = data.get_pixel(0, 0);
+  /// ```
+  ///
   /// # Panics
   /// Panics if the coordinates are outside the frame dimensions,
   /// i.e. `x >=` [`Self::width`] or `y >=` [`Self::height`].
@@ -248,7 +249,7 @@ pub trait Freenect2Frame {
   /// # Example
   /// ```
   /// use libfreenect2_rs::frame::{Frame, Freenect2Frame};
-  /// use libfreenect2_rs::frame_data::FrameValue;
+  /// use libfreenect2_rs::frame_value::FrameValue;
   ///
   /// let frame = Frame::depth();
   /// let pixel = frame.get_pixel(0, 0);
@@ -265,50 +266,91 @@ pub trait Freenect2Frame {
     assert!(y < self.height(), "y: {} >= height: {}", y, self.height());
 
     let index = (y * self.width() + x) * self.bytes_per_pixel();
+    let data = self.raw_data();
     match self.format() {
-      FrameFormat::RGBX => {
-        let data = self.raw_data();
-        FrameValue::RGBX(RGBX {
-          r: data[index],
-          g: data[index + 1],
-          b: data[index + 2],
-          x: data[index + 3],
-        })
-      }
-      FrameFormat::BGRX => {
-        let data = self.raw_data();
-        FrameValue::RGBX(RGBX {
-          r: data[index + 2],
-          g: data[index + 1],
-          b: data[index],
-          x: data[index + 3],
-        })
-      }
-      FrameFormat::Gray => {
-        let data = self.raw_data();
-        FrameValue::Gray(data[index])
-      }
-      FrameFormat::Float => {
-        let data = self.raw_data();
-        FrameValue::Float(f32::from_ne_bytes(
-          data[index..index + 4].try_into().unwrap(),
-        ))
-      }
-      FrameFormat::Raw => {
-        FrameValue::Raw(self.raw_data()[index..index + self.bytes_per_pixel()].to_vec())
-      }
+      FrameFormat::RGBX => FrameValue::RGBX(RGBX {
+        r: data[index],
+        g: data[index + 1],
+        b: data[index + 2],
+        x: data[index + 3],
+      }),
+      FrameFormat::BGRX => FrameValue::RGBX(RGBX {
+        r: data[index + 2],
+        g: data[index + 1],
+        b: data[index],
+        x: data[index + 3],
+      }),
+      FrameFormat::Gray => FrameValue::Gray(data[index]),
+      FrameFormat::Float => FrameValue::Float(f32::from_ne_bytes(
+        data[index..index + 4].try_into().unwrap(),
+      )),
+      FrameFormat::Raw => FrameValue::Raw(data[index..index + self.bytes_per_pixel()].to_vec()),
       FrameFormat::Invalid => FrameValue::Invalid(self.raw_data()[index]),
+    }
+  }
+
+  /// Returns the data of the frame.
+  /// The data is represented as [`FrameData`].
+  /// The data is in the format specified by the frame.
+  /// The data can be used to iterate over the frame data.
+  /// The data can also be used to get the pixel at a specific position.
+  ///
+  /// # Example
+  /// ```
+  /// use libfreenect2_rs::frame::{Frame, Freenect2Frame};
+  /// use libfreenect2_rs::frame_data::FrameDataValue;
+  ///
+  /// let frame = Frame::depth();
+  /// let data = frame.data();
+  ///
+  /// for row in data.expect_float().iter() {
+  ///   for value in row {
+  ///     println!("Value: {}", value);
+  ///   }
+  /// }
+  /// ```
+  fn data(&self) -> FrameData
+  where
+    Self: Sized,
+  {
+    match self.format() {
+      FrameFormat::RGBX => FrameData::RGBX(RGBXData::rgbx(self)),
+      FrameFormat::BGRX => FrameData::RGBX(RGBXData::bgrx(self)),
+      FrameFormat::Gray => FrameData::Gray(GrayData::new(self)),
+      FrameFormat::Float => FrameData::Float(FloatData::new(self)),
+      FrameFormat::Raw => FrameData::Raw(RawData::new(self)),
+      FrameFormat::Invalid => FrameData::Invalid,
     }
   }
 }
 
+/// A native libfreenect2 frame.
+/// Contains an owned pointer to a libfreenect2 frame.
+/// Can't be cloned or copied. Use [`OwnedFrame`] for that,
+/// which can be created using [`Frame::to_owned`].
 pub struct Frame<'a> {
   pub(crate) inner: cxx::UniquePtr<ffi::libfreenect2::Frame<'a>>,
+  width: usize,
+  height: usize,
+  bytes_per_pixel: usize,
+  raw_data: &'a [u8],
 }
 
 impl<'a> Frame<'a> {
   pub(crate) fn new(inner: cxx::UniquePtr<ffi::libfreenect2::Frame<'a>>) -> Self {
-    Self { inner }
+    let width = unsafe { inner.width() as usize };
+    let height = unsafe { inner.height() as usize };
+    let bytes_per_pixel = unsafe { inner.bytes_per_pixel() as usize };
+
+    Self {
+      width,
+      height,
+      bytes_per_pixel,
+      raw_data: unsafe {
+        std::slice::from_raw_parts(inner.data(), width * height * bytes_per_pixel)
+      },
+      inner,
+    }
   }
 
   /// Create a new depth frame.
@@ -407,8 +449,8 @@ impl<'a> Frame<'a> {
   }
 }
 
-impl<'a> AsFrame<'a> for Frame<'a> {
-  fn as_frame(&'a self) -> FrameReference<'a> {
+impl<'a, 'b: 'a> AsFrame<'a, 'b> for Frame<'b> {
+  fn as_frame(&'a self) -> FrameReference<'a, 'b> {
     FrameReference::Borrowed(self)
   }
 }
@@ -418,15 +460,15 @@ unsafe impl Sync for Frame<'_> {}
 
 impl Freenect2Frame for Frame<'_> {
   fn width(&self) -> usize {
-    unsafe { self.inner.width() as usize }
+    self.width
   }
 
   fn height(&self) -> usize {
-    unsafe { self.inner.height() as usize }
+    self.height
   }
 
   fn bytes_per_pixel(&self) -> usize {
-    unsafe { self.inner.bytes_per_pixel() as usize }
+    self.bytes_per_pixel
   }
 
   fn timestamp(&self) -> u32 {
@@ -434,7 +476,7 @@ impl Freenect2Frame for Frame<'_> {
   }
 
   fn raw_data(&self) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(self.inner.data(), self.raw_data_len()) }
+    self.raw_data
   }
 
   fn sequence(&self) -> u32 {
@@ -561,8 +603,8 @@ impl Freenect2Frame for OwnedFrame {
   }
 }
 
-impl<'a> AsFrame<'a> for OwnedFrame {
-  fn as_frame(&'a self) -> FrameReference<'a> {
+impl<'a> AsFrame<'a, 'a> for OwnedFrame {
+  fn as_frame(&'a self) -> FrameReference<'a, 'a> {
     FrameReference::Owned(self.to_frame())
   }
 }

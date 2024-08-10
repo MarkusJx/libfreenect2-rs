@@ -1,5 +1,6 @@
 use crate::constants::{FINAL_Z_SCALE, SCALE, Z_HUE_SCALE};
 use crate::freenect_state::FreenectState;
+use crate::multi_thread_image_processor::MultiThreadImageProcessor;
 use crate::renderer::PointCloudRenderer;
 use crate::RenderType;
 use colors_transform::{Color, Hsl};
@@ -10,6 +11,7 @@ use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
 use libfreenect2_rs::frame::Freenect2Frame;
+use libfreenect2_rs::frame_data::FrameDataValue;
 use na::{Point2, Point3};
 use std::time::Instant;
 
@@ -20,6 +22,7 @@ pub struct AppState {
   i: usize,
   render_type: RenderType,
   last_fps: Option<String>,
+  processor: MultiThreadImageProcessor,
 }
 
 impl AppState {
@@ -34,6 +37,11 @@ impl AppState {
       i: 0,
       render_type,
       last_fps: None,
+      processor: MultiThreadImageProcessor::new(if render_type == RenderType::FullColor {
+        std::thread::available_parallelism()?.get()
+      } else {
+        1
+      }),
     })
   }
 
@@ -52,64 +60,41 @@ impl State for AppState {
   fn step(&mut self, window: &mut Window) {
     let elapsed = self.last_render_start.elapsed();
     let render_start = Instant::now();
+    self.last_render_start = render_start;
 
     let frames = self.freenect_state.get_frame().unwrap();
     let frame_fetch = render_start.elapsed();
-    self.i += 1;
-    if self.render_type == RenderType::FullColor && self.i % 2 != 0 {
-      drop(frames);
-      self.draw_fps(window);
-      return;
-    }
 
-    self.last_render_start = render_start;
+    self.i += 1;
     self.point_cloud_renderer.clear();
 
     let depth = frames.expect_depth().unwrap();
     // Correct the aspect ratio of the frame since we are drawing a square.
     let y_scale = depth.height() as f32 / depth.width() as f32;
 
-    let start = Instant::now();
+    let processing_start = Instant::now();
     if self.render_type.is_color() {
       let color = frames.expect_color().unwrap();
 
       // The first line of the depth frame is empty if the depth frame is
       // in the same frame as the color frame (1920x1080).
-      let depth_offset = if self.render_type == RenderType::FullColor {
-        1
-      } else {
-        0
-      };
+      let depth_offset = self.render_type.depth_offset();
+      let depth_data = depth.data().expect_float();
+      let color_data = color.data().expect_rgbx();
 
-      for y in 0..color.height() {
-        for x in 0..color.width() {
-          let z = depth.get_pixel(x, y + depth_offset).expect_float();
-          if z <= 0.0 {
-            continue;
-          }
-
-          let x_f32 = x as f32 / (color.width() as f32) - 0.5;
-          let y_f32 = 0.5 - y as f32 / (color.height() as f32);
-
-          let color_pixel = color.get_pixel(x as _, y as _);
-          let color_pixel = color_pixel.expect_rgbx();
-
-          self.point_cloud_renderer.push(
-            Point3::new(x_f32 * SCALE, y_f32 * SCALE * y_scale, z * FINAL_Z_SCALE),
-            Point3::new(
-              color_pixel.r as f32 / 255.0,
-              color_pixel.g as f32 / 255.0,
-              color_pixel.b as f32 / 255.0,
-            ),
-          );
-        }
-      }
+      self.processor.process(
+        &depth_data,
+        &color_data,
+        color.as_ref(),
+        y_scale,
+        depth_offset,
+        &mut self.point_cloud_renderer,
+      );
     } else {
       let width = depth.width() as f32;
       let height = depth.height() as f32;
-      for (y, row) in depth.iter().enumerate() {
-        for (x, value) in row.enumerate() {
-          let z = value.expect_float();
+      for (y, row) in depth.data().expect_float().iter().enumerate() {
+        for (x, z) in row.enumerate() {
           if z <= 0.0 {
             continue;
           }
@@ -131,11 +116,14 @@ impl State for AppState {
       }
     }
 
-    let processing = start.elapsed();
+    let processing = processing_start.elapsed();
     if self.i % 15 == 0 {
       self.last_fps = Some(format!(
-        "{} FPS, processing: {processing:?}, full render: {elapsed:?}, frame fetch: {frame_fetch:?}",
-        1_000_000 / elapsed.as_micros()
+        "{} FPS, processing: {}ms, frame fetch: {}ms, full render: {}ms",
+        1_000_000 / elapsed.as_micros(),
+        processing.as_millis(),
+        frame_fetch.as_millis(),
+        elapsed.as_millis(),
       ));
     }
 

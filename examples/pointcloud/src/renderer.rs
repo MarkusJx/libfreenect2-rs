@@ -42,6 +42,12 @@ impl PointCloudRenderer {
     }
   }
 
+  pub fn append(&mut self, other: &mut Vec<Point3<f32>>) {
+    if let Some(colored_points) = self.colored_points.data_mut() {
+      colored_points.append(other);
+    }
+  }
+
   pub fn clear(&mut self) {
     if let Some(colored_points) = self.colored_points.data_mut() {
       colored_points.clear();

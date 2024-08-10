@@ -6,7 +6,7 @@ use crate::types::frame_listener::FrameListener;
 
 #[test]
 fn test_create_frame_listener() {
-  FrameListener::new(|_type, _frame| {}).unwrap();
+  FrameListener::new(|_type, _frame| Ok(())).unwrap();
 }
 
 #[test]
@@ -18,6 +18,8 @@ fn test_call_frame_listener() {
     assert_eq!(frame.height(), 2);
     assert_eq!(frame.bytes_per_pixel(), 2);
     assert_eq!(frame.raw_data(), [1, 2, 3, 4]);
+
+    Ok(())
   })
   .unwrap();
 
@@ -38,10 +40,10 @@ fn test_call_frame_listener() {
 #[test]
 #[cfg(debug_assertions)]
 fn test_call_throwing_frame_listener() {
-  let mut listener = FrameListener::new(|_, _| panic!("Test")).unwrap();
+  let mut listener = FrameListener::new(|_, _| anyhow::bail!("Test")).unwrap();
 
   let mut data = vec![1, 2, 3, 4];
-  unsafe {
+  let res = unsafe {
     call_frame_listener(
       &mut listener.0,
       FrameType::Color,
@@ -50,6 +52,8 @@ fn test_call_throwing_frame_listener() {
       2,
       data.as_mut_ptr(),
     )
-    .unwrap();
-  }
+  };
+
+  assert!(res.is_err());
+  assert!(res.unwrap_err().to_string().contains("Test"))
 }

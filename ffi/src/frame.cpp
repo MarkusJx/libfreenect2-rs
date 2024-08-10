@@ -56,21 +56,26 @@ class FrameListenerImpl : public libfreenect2::FrameListener {
  public:
   explicit FrameListenerImpl(
       rust::cxxbridge1::Box<CallContext> &&ctx,
-      rust::Fn<void(FrameType, std::unique_ptr<Frame>,
-                    const rust::cxxbridge1::Box<CallContext> &)>
+      rust::Fn<rust::String(FrameType, std::unique_ptr<Frame>,
+                            const rust::cxxbridge1::Box<CallContext> &)>
           on_new_frame)
       : on_new_frame(on_new_frame), ctx(std::move(ctx)) {}
 
   bool onNewFrame(libfreenect2::Frame::Type type,
                   libfreenect2::Frame *frame) override {
-    on_new_frame(static_cast<FrameType>(type), std::make_unique<Frame>(frame),
-                 ctx);
+    rust::String res = on_new_frame(static_cast<FrameType>(type),
+                                    std::make_unique<Frame>(frame), ctx);
+
+    if (!res.empty()) {
+      throw std::runtime_error(res.operator std::string());
+    }
+
     return true;
   }
 
  private:
-  rust::Fn<void(FrameType, std::unique_ptr<Frame>,
-                const rust::cxxbridge1::Box<CallContext> &)>
+  rust::Fn<rust::String(FrameType, std::unique_ptr<Frame>,
+                        const rust::cxxbridge1::Box<CallContext> &)>
       on_new_frame;
   const rust::cxxbridge1::Box<CallContext> ctx;
 };
@@ -95,8 +100,8 @@ LIBFREENECT2_RS_FUNC std::unique_ptr<Frame> libfreenect2_ffi::create_frame(
 LIBFREENECT2_MAYBE_UNUSED std::unique_ptr<libfreenect2::FrameListener>
 libfreenect2_ffi::create_frame_listener(
     rust::cxxbridge1::Box<CallContext> ctx,
-    rust::Fn<void(FrameType, std::unique_ptr<Frame>,
-                  const rust::cxxbridge1::Box<CallContext> &)>
+    rust::Fn<rust::String(FrameType, std::unique_ptr<Frame>,
+                          const rust::cxxbridge1::Box<CallContext> &)>
         on_new_frame) {
   return std::make_unique<FrameListenerImpl>(std::move(ctx), on_new_frame);
 }
